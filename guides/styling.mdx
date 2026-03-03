@@ -1,0 +1,737 @@
+---
+title: 'Scoped CSS and Styling'
+description: 'Learn how to style DativeJS components with scoped CSS using the css option'
+icon: 'palette'
+---
+
+DativeJS provides a powerful scoped CSS system that allows you to write component-specific styles without worrying about global CSS conflicts. The framework automatically scopes your styles to each component instance.
+
+## Overview
+
+When you define CSS in a DativeJS component using the `css` option, the framework:
+
+- Automatically scopes styles to the component
+- Adds unique `data-dative-css` attributes to elements
+- Transforms CSS selectors to target only component elements
+- Prevents style leakage between components
+- Compiles template expressions in CSS
+
+<Note>
+Scoped CSS is only available when using `Dative.extend()` to create component classes, not with direct `new Dative()` instantiation.
+</Note>
+
+## Basic Scoped CSS
+
+Define component styles using the `css` option:
+
+<CodeGroup>
+```javascript Component with CSS
+const Button = Dative.extend({
+  data() {
+    return {
+      label: 'Click Me',
+      variant: 'primary'
+    }
+  },
+  css: `
+    button {
+      padding: 12px 24px;
+      border: none;
+      border-radius: 4px;
+      font-size: 16px;
+      cursor: pointer;
+      transition: all 200ms;
+    }
+    
+    button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+    }
+    
+    .primary {
+      background: #FF3E00;
+      color: white;
+    }
+    
+    .secondary {
+      background: #676778;
+      color: white;
+    }
+  `,
+  template: `
+    <button bind:className="variant">
+      {{ label }}
+    </button>
+  `
+});
+
+// Create instances
+const btn1 = new Button({ 
+  el: '#button1',
+  props: { label: 'Primary Button', variant: 'primary' }
+});
+
+const btn2 = new Button({ 
+  el: '#button2',
+  props: { label: 'Secondary Button', variant: 'secondary' }
+});
+```
+
+```html Generated HTML
+<!-- Each component gets a unique data-dative-css attribute -->
+<button data-dative-css="abc123" class="primary">
+  Primary Button
+</button>
+
+<button data-dative-css="def456" class="secondary">
+  Secondary Button
+</button>
+```
+
+```css Generated CSS
+/* Styles are scoped to each component */
+[data-dative-css~="abc123"] button {
+  padding: 12px 24px;
+  border: none;
+  border-radius: 4px;
+  font-size: 16px;
+  cursor: pointer;
+  transition: all 200ms;
+}
+
+[data-dative-css~="abc123"] button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+}
+
+/* ... and so on for each component instance */
+```
+</CodeGroup>
+
+## How Scoping Works
+
+The scoping system uses the `data-dative-css` attribute:
+
+<Steps>
+
+<Step title="Unique ID generation">
+Each component instance gets a unique ID:
+
+```javascript
+// From source (index.js:1269)
+if ($this.options.css) $this.cssId_ = uuid_();
+```
+</Step>
+
+<Step title="Attribute assignment">
+Every element in the component template receives the unique attribute:
+
+```javascript
+// From source (index.js:890-892)
+for (const el of elem.querySelectorAll('*')) {
+  if ($app.options.css) {
+    el.setAttribute('data-dative-css', $app.cssId_);
+  }
+}
+```
+</Step>
+
+<Step title="CSS transformation">
+CSS selectors are transformed to include the attribute:
+
+```css
+/* Before transformation */
+.button { color: red; }
+
+/* After transformation */
+[data-dative-css~="abc123"] .button { color: red; }
+```
+</Step>
+
+</Steps>
+
+## Dynamic CSS with Template Expressions
+
+You can use template expressions in your CSS:
+
+```javascript
+const ThemedCard = Dative.extend({
+  data() {
+    return {
+      primaryColor: '#FF3E00',
+      secondaryColor: '#676778',
+      borderRadius: '8px',
+      spacing: '16px'
+    }
+  },
+  css: `
+    .card {
+      background: {{ primaryColor }};
+      border-radius: {{ borderRadius }};
+      padding: {{ spacing }};
+      margin-bottom: {{ spacing }};
+    }
+    
+    .card-header {
+      background: {{ secondaryColor }};
+      color: white;
+      padding: calc({{ spacing }} / 2);
+      border-radius: {{ borderRadius }} {{ borderRadius }} 0 0;
+    }
+    
+    .card-body {
+      padding: {{ spacing }};
+      color: #333;
+    }
+  `,
+  template: `
+    <div class="card">
+      <div class="card-header">
+        <h3>Card Title</h3>
+      </div>
+      <div class="card-body">
+        <p>Card content goes here</p>
+      </div>
+    </div>
+  `
+});
+
+const card = new ThemedCard({ el: '#card' });
+```
+
+## External Style Templates
+
+Reference external `<style>` tags using the `#` prefix:
+
+<CodeGroup>
+```html HTML
+<style type="text/dss" id="button-styles">
+  button {
+    padding: 10px 20px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 600;
+    transition: transform 200ms;
+  }
+  
+  button:hover {
+    transform: scale(1.05);
+  }
+  
+  button:active {
+    transform: scale(0.95);
+  }
+</style>
+
+<div id="app"></div>
+```
+
+```javascript Component
+const Button = Dative.extend({
+  data() {
+    return {
+      text: 'Click Me'
+    }
+  },
+  css: '#button-styles', // Reference external style
+  template: `
+    <button>{{ text }}</button>
+  `
+});
+
+const btn = new Button({ el: '#app' });
+```
+</CodeGroup>
+
+<Warning>
+When using external style templates, the `<style>` tag must have `type="text/dss"` attribute, not `type="text/css"`.
+</Warning>
+
+## Controlling Scope
+
+By default, CSS is scoped to the component. You can control this with the `cssScoped` option:
+
+```javascript
+const Component = Dative.extend({
+  data() {
+    return {}
+  },
+  cssScoped: true, // Default: true
+  css: `
+    /* These styles will be scoped */
+    .container {
+      padding: 20px;
+    }
+  `,
+  template: `<div class="container">Content</div>`
+});
+```
+
+To create global styles (not recommended):
+
+```javascript
+const Component = Dative.extend({
+  cssScoped: false, // Disable scoping
+  css: `
+    /* These styles are global - use with caution! */
+    .global-class {
+      color: red;
+    }
+  `,
+  template: `<div class="global-class">Content</div>`
+});
+```
+
+## Pseudo-selectors and Advanced CSS
+
+All standard CSS features work with scoped styles:
+
+```javascript
+const AdvancedComponent = Dative.extend({
+  data() {
+    return {}
+  },
+  css: `
+    /* Pseudo-classes */
+    a:hover { color: blue; }
+    input:focus { border-color: #FF3E00; }
+    li:first-child { font-weight: bold; }
+    li:nth-child(even) { background: #f5f5f5; }
+    
+    /* Pseudo-elements */
+    .title::before {
+      content: '→ ';
+      color: #FF3E00;
+    }
+    
+    .title::after {
+      content: '';
+      display: block;
+      width: 50px;
+      height: 2px;
+      background: #FF3E00;
+      margin-top: 8px;
+    }
+    
+    /* Media queries */
+    @media (max-width: 768px) {
+      .container {
+        padding: 10px;
+      }
+    }
+    
+    /* Attribute selectors */
+    [type="text"] { border: 1px solid #ccc; }
+    [disabled] { opacity: 0.5; cursor: not-allowed; }
+    
+    /* Combinators */
+    .parent > .child { margin-left: 20px; }
+    .item + .item { margin-top: 10px; }
+    .container ~ .sibling { color: gray; }
+  `,
+  template: `
+    <div class="container">
+      <h2 class="title">Advanced Styling</h2>
+      <ul>
+        <li class="item">Item 1</li>
+        <li class="item">Item 2</li>
+        <li class="item">Item 3</li>
+      </ul>
+    </div>
+  `
+});
+```
+
+## Keyframe Animations
+
+Define CSS animations with `@keyframes`:
+
+```javascript
+const AnimatedComponent = Dative.extend({
+  data() {
+    return {
+      isVisible: true
+    }
+  },
+  css: `
+    @keyframes fadeInSlide {
+      from {
+        opacity: 0;
+        transform: translateY(-20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+    
+    @keyframes pulse {
+      0%, 100% {
+        transform: scale(1);
+      }
+      50% {
+        transform: scale(1.05);
+      }
+    }
+    
+    .animated-box {
+      animation: fadeInSlide 600ms ease-out;
+      padding: 20px;
+      background: #f0f0f0;
+      border-radius: 8px;
+    }
+    
+    .pulse-button {
+      animation: pulse 2s infinite;
+      padding: 12px 24px;
+      background: #FF3E00;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+  `,
+  template: `
+    <div>
+      <div class="animated-box">
+        <h3>Animated Content</h3>
+        <p>This box slides in on load</p>
+      </div>
+      <button class="pulse-button">Pulsing Button</button>
+    </div>
+  `
+});
+```
+
+## CSS Variables (Custom Properties)
+
+Use CSS custom properties for themeable components:
+
+```javascript
+const ThemeableComponent = Dative.extend({
+  data() {
+    return {
+      theme: 'light'
+    }
+  },
+  css: `
+    :root {
+      --primary-color: #FF3E00;
+      --secondary-color: #676778;
+      --background: white;
+      --text-color: #333;
+      --border-radius: 4px;
+      --spacing: 16px;
+    }
+    
+    .themed-container {
+      background: var(--background);
+      color: var(--text-color);
+      padding: var(--spacing);
+      border-radius: var(--border-radius);
+    }
+    
+    .primary-button {
+      background: var(--primary-color);
+      color: white;
+      padding: calc(var(--spacing) / 2) var(--spacing);
+      border: none;
+      border-radius: var(--border-radius);
+      cursor: pointer;
+    }
+    
+    .secondary-button {
+      background: var(--secondary-color);
+      color: white;
+      padding: calc(var(--spacing) / 2) var(--spacing);
+      border: none;
+      border-radius: var(--border-radius);
+      cursor: pointer;
+    }
+    
+    /* Dark theme */
+    .dark-theme {
+      --background: #1a1a1a;
+      --text-color: #f0f0f0;
+      --primary-color: #ff5722;
+    }
+  `,
+  template: `
+    <div bind:className="theme === 'dark' ? 'themed-container dark-theme' : 'themed-container'">
+      <h2>Themeable Component</h2>
+      <button class="primary-button" on:click="theme = theme === 'light' ? 'dark' : 'light'">
+        Toggle Theme
+      </button>
+      <button class="secondary-button">Secondary Action</button>
+    </div>
+  `
+});
+```
+
+## Practical Examples
+
+### Card Component
+
+```javascript
+const Card = Dative.extend({
+  props: {
+    title: { type: String, default: 'Card Title' },
+    description: { type: String, default: 'Card description' }
+  },
+  css: `
+    .card {
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      overflow: hidden;
+      transition: transform 200ms, box-shadow 200ms;
+    }
+    
+    .card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+    }
+    
+    .card-header {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 20px;
+    }
+    
+    .card-header h3 {
+      margin: 0;
+      font-size: 20px;
+    }
+    
+    .card-body {
+      padding: 20px;
+      color: #333;
+    }
+    
+    .card-body p {
+      margin: 0;
+      line-height: 1.6;
+    }
+  `,
+  template: `
+    <div class="card">
+      <div class="card-header">
+        <h3>{{ title }}</h3>
+      </div>
+      <div class="card-body">
+        <p>{{ description }}</p>
+      </div>
+    </div>
+  `
+});
+
+const card = new Card({
+  el: '#card',
+  props: {
+    title: 'DativeJS Card',
+    description: 'A beautiful card component with scoped styles'
+  }
+});
+```
+
+### Form Component
+
+```javascript
+const LoginForm = Dative.extend({
+  data() {
+    return {
+      email: '',
+      password: '',
+      errors: {}
+    }
+  },
+  css: `
+    .form-container {
+      max-width: 400px;
+      margin: 0 auto;
+      padding: 30px;
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+    }
+    
+    .form-group {
+      margin-bottom: 20px;
+    }
+    
+    .form-group label {
+      display: block;
+      margin-bottom: 8px;
+      font-weight: 600;
+      color: #333;
+    }
+    
+    .form-group input {
+      width: 100%;
+      padding: 12px;
+      border: 2px solid #e0e0e0;
+      border-radius: 4px;
+      font-size: 14px;
+      transition: border-color 200ms;
+    }
+    
+    .form-group input:focus {
+      outline: none;
+      border-color: #FF3E00;
+    }
+    
+    .form-group .error {
+      color: #d32f2f;
+      font-size: 12px;
+      margin-top: 4px;
+    }
+    
+    .submit-button {
+      width: 100%;
+      padding: 14px;
+      background: #FF3E00;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 200ms;
+    }
+    
+    .submit-button:hover {
+      background: #e63900;
+    }
+    
+    .submit-button:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+    }
+  `,
+  methods: {
+    handleSubmit(evt) {
+      evt.preventDefault();
+      console.log('Login:', { email: this.email, password: this.password });
+    }
+  },
+  template: `
+    <form class="form-container" on:submit="handleSubmit($event)">
+      <h2>Login</h2>
+      
+      <div class="form-group">
+        <label>Email</label>
+        <input 
+          bind:value="email" 
+          type="email" 
+          placeholder="Enter your email"
+        />
+        #if errors.email
+          <div class="error">{{ errors.email }}</div>
+        /if
+      </div>
+      
+      <div class="form-group">
+        <label>Password</label>
+        <input 
+          bind:value="password" 
+          type="password" 
+          placeholder="Enter your password"
+        />
+        #if errors.password
+          <div class="error">{{ errors.password }}</div>
+        /if
+      </div>
+      
+      <button type="submit" class="submit-button">
+        Sign In
+      </button>
+    </form>
+  `
+});
+```
+
+## Best Practices
+
+<CardGroup cols={2}>
+<Card title="Use Scoped Styles" icon="shield">
+Always use scoped styles to prevent conflicts between components.
+</Card>
+
+<Card title="Mobile-First" icon="mobile">
+Write mobile-first CSS and use media queries for larger screens.
+</Card>
+
+<Card title="CSS Variables" icon="swatchbook">
+Use CSS custom properties for themeable, maintainable styles.
+</Card>
+
+<Card title="Keep It Organized" icon="folder-tree">
+Organize your CSS logically: layout, typography, colors, interactions.
+</Card>
+</CardGroup>
+
+<Tip>
+Combine scoped CSS with the animation system for powerful, self-contained components that look great and perform well.
+</Tip>
+
+## Common Patterns
+
+### Responsive Grid
+
+```css
+.grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 20px;
+}
+
+@media (min-width: 768px) {
+  .grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (min-width: 1024px) {
+  .grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+```
+
+### Flexbox Layouts
+
+```css
+.flex-container {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+@media (min-width: 768px) {
+  .flex-container {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+  }
+}
+```
+
+<Warning>
+Remember that CSS in the `css` option is only available with `Dative.extend()`, not direct `new Dative()` instantiation.
+</Warning>
+
+## Next Steps
+
+<CardGroup cols={2}>
+<Card title="Data Binding" icon="link" href="/guides/data-binding">
+Learn about reactive data binding with the bind: directive
+</Card>
+
+<Card title="Animations" icon="play" href="/guides/animations">
+Explore the animation system for dynamic effects
+</Card>
+</CardGroup>

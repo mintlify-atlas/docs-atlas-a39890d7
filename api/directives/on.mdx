@@ -1,0 +1,390 @@
+---
+title: 'dv-on: / on:'
+description: 'Attach event listeners to DOM elements'
+---
+
+The `dv-on:` (or shorthand `on:`) directive attaches event listeners to DOM elements, allowing you to respond to user interactions like clicks, input changes, form submissions, and more.
+
+## Syntax
+
+```html
+<element dv-on:eventName="handler"></element>
+<element on:eventName="handler"></element>
+```
+
+Both syntaxes are equivalent. The shorthand `on:` syntax is more concise and commonly used.
+
+## Parameters
+
+<ParamField path="eventName" type="string" required>
+  The name of the DOM event to listen for. Common events include:
+  - `click` - Mouse click
+  - `input` - Input value change
+  - `change` - Input change (on blur)
+  - `submit` - Form submission
+  - `keydown`, `keyup`, `keypress` - Keyboard events
+  - `mouseenter`, `mouseleave`, `mouseover` - Mouse events
+  - `focus`, `blur` - Focus events
+  - `scroll` - Scroll event
+  - Any standard DOM event name
+</ParamField>
+
+<ParamField path="handler" type="string" required>
+  A JavaScript expression or statement to execute when the event fires. The expression is evaluated in the context of your component's data.
+  
+  Two special parameters are available within the handler:
+  - `$event` - The native DOM event object
+  - `$self` - The element that triggered the event
+</ParamField>
+
+## Special Parameters
+
+### $event
+
+The `$event` parameter provides access to the native DOM event object:
+
+```html
+<button on:click="handleClick($event)">Click me</button>
+```
+
+```javascript
+methods: {
+  handleClick(event) {
+    console.log('Event type:', event.type);
+    console.log('Target:', event.target);
+    event.preventDefault();
+  }
+}
+```
+
+### $self
+
+The `$self` parameter references the DOM element that triggered the event:
+
+```html
+<button on:click="toggleActive($self)">Toggle</button>
+```
+
+```javascript
+methods: {
+  toggleActive(element) {
+    element.classList.toggle('active');
+  }
+}
+```
+
+## Usage Examples
+
+### Click Events
+
+```html
+<button on:click="count++">Clicked {{ count }} times</button>
+<button on:click="handleClick">Call Method</button>
+<a on:click="navigate($event)">Go to Page</a>
+```
+
+```javascript
+new Dative({
+  target: '#app',
+  data() {
+    return {
+      count: 0
+    }
+  },
+  methods: {
+    handleClick() {
+      alert('Button clicked!');
+    },
+    navigate(event) {
+      event.preventDefault();
+      // Custom navigation logic
+    }
+  },
+  template: `...`
+})
+```
+
+### Input Events
+
+```html
+<input on:input="handleInput($event)" type="text">
+<input on:change="handleChange($event)" type="text">
+<input on:keyup="search($event)" placeholder="Search...">
+```
+
+```javascript
+data() {
+  return {
+    searchQuery: ''
+  }
+},
+methods: {
+  handleInput(event) {
+    console.log('Current value:', event.target.value);
+  },
+  handleChange(event) {
+    console.log('Final value:', event.target.value);
+  },
+  search(event) {
+    this.searchQuery = event.target.value;
+    // Perform search...
+  }
+}
+```
+
+### Form Submission
+
+```html
+<form on:submit="handleSubmit($event)">
+  <input name="email" type="email">
+  <button type="submit">Subscribe</button>
+</form>
+```
+
+```javascript
+methods: {
+  handleSubmit(event) {
+    event.preventDefault();
+    const formData = new FormData(event.target);
+    const email = formData.get('email');
+    // Process form...
+  }
+}
+```
+
+### Keyboard Events
+
+```html
+<input on:keydown="handleKeyDown($event)" type="text">
+<input on:keyup="handleEnter($event)" placeholder="Press Enter">
+```
+
+```javascript
+methods: {
+  handleKeyDown(event) {
+    if (event.key === 'Escape') {
+      event.target.blur();
+    }
+  },
+  handleEnter(event) {
+    if (event.key === 'Enter') {
+      this.submitForm();
+    }
+  }
+}
+```
+
+### Mouse Events
+
+```html
+<div on:mouseenter="isHovered = true"
+     on:mouseleave="isHovered = false">
+  Hover over me
+</div>
+
+<button on:mouseover="showTooltip($self)"
+        on:mouseout="hideTooltip($self)">
+  Hover for tooltip
+</button>
+```
+
+```javascript
+data() {
+  return {
+    isHovered: false
+  }
+},
+methods: {
+  showTooltip(element) {
+    element.setAttribute('title', 'This is a tooltip');
+  },
+  hideTooltip(element) {
+    element.removeAttribute('title');
+  }
+}
+```
+
+### Focus Events
+
+```html
+<input on:focus="isFocused = true"
+       on:blur="isFocused = false"
+       type="text">
+<p>Input is {{ isFocused ? 'focused' : 'not focused' }}</p>
+```
+
+```javascript
+data() {
+  return {
+    isFocused: false
+  }
+}
+```
+
+### Multiple Statements
+
+```html
+<button on:click="count++; logClick()">Click me</button>
+```
+
+```javascript
+data() {
+  return {
+    count: 0
+  }
+},
+methods: {
+  logClick() {
+    console.log('Button was clicked');
+  }
+}
+```
+
+### Passing Arguments
+
+```html
+<button on:click="selectItem('apple')">Apple</button>
+<button on:click="selectItem('banana')">Banana</button>
+<button on:click="deleteItem(item.id, $event)">Delete</button>
+```
+
+```javascript
+methods: {
+  selectItem(fruit) {
+    console.log('Selected:', fruit);
+  },
+  deleteItem(id, event) {
+    event.stopPropagation();
+    // Delete item with id...
+  }
+}
+```
+
+### Custom Event Handling
+
+```html
+<div on:scroll="handleScroll($event, $self)">
+  Scrollable content...
+</div>
+```
+
+```javascript
+methods: {
+  handleScroll(event, element) {
+    const scrollTop = element.scrollTop;
+    const scrollHeight = element.scrollHeight;
+    console.log('Scroll position:', scrollTop, '/', scrollHeight);
+  }
+}
+```
+
+### Conditional Logic in Handlers
+
+```html
+<button on:click="isLoggedIn ? logout() : login()">Toggle Auth</button>
+<input on:input="$event.target.value.length > 0 ? validate() : reset()">
+```
+
+```javascript
+data() {
+  return {
+    isLoggedIn: false
+  }
+},
+methods: {
+  login() {
+    this.isLoggedIn = true;
+  },
+  logout() {
+    this.isLoggedIn = false;
+  },
+  validate() {
+    // Validation logic
+  },
+  reset() {
+    // Reset logic
+  }
+}
+```
+
+## Implementation Details
+
+From the source code (`index.js:893-914`):
+
+```javascript
+if (name.startsWith(prefix("on:")) || name.startsWith("on:")) {
+  var eventName = name.slice(6);
+  if (name.startsWith("on:")) {
+    eventName = name.slice(3);
+  }
+
+  const handlerName = el.getAttribute(name);
+  if ($app.events) {
+    for (const events in $app.events) {
+      const vall = $app.events[events];
+      if (eventName === events) {
+        vall(el, event.bind(this));
+      }
+    }
+  }
+  el.addEventListener(eventName, (evt) => {
+    event(this, handlerName, el, evt);
+  });
+
+  el.removeAttribute(name);
+}
+```
+
+The `event` function processes the handler expression (`index.js:563-582`):
+
+```javascript
+function event(data, expression, elem, evt) {
+  var _$ = "with(obj){ var $on = []; var _on = (c)=> $on.push(c);";
+  _$ += "_on((($event,$self)=>{" + expression + "})($event,$self));";
+  _$ = _$ + 'return $on.join("") }';
+  try {
+    new Function("obj", "$event", "$self", _$).apply(data, [data, evt, elem]);
+  } catch (err) {
+    const message__ =
+      "Compiler (Event) " +
+      err.name +
+      ": " +
+      err.message +
+      " found at: \n" +
+      elem.outerHTML +
+      "\n" +
+      "^".repeat(elem.outerHTML.length) +
+      "\n";
+    warn(message__);
+  }
+}
+```
+
+## Custom Events (Advanced)
+
+You can define custom event handlers in the `events` option:
+
+```javascript
+new Dative({
+  target: '#app',
+  events: {
+    customEvent(element, eventHandler) {
+      // Custom event logic
+      element.addEventListener('customEvent', (e) => {
+        eventHandler(e);
+      });
+    }
+  },
+  template: `<div on:customEvent="handleCustom">...</div>`
+})
+```
+
+## Notes
+
+- The directive is removed from the final rendered DOM
+- Both `dv-on:` and `on:` syntaxes are supported
+- Event handlers have access to `$event` (the DOM event) and `$self` (the element)
+- Handlers are evaluated in the component's context
+- Multiple statements can be separated with semicolons
+- The event listener is automatically attached using `addEventListener`
+- Any standard DOM event name can be used

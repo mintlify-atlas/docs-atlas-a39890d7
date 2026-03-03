@@ -1,0 +1,618 @@
+---
+title: 'Built-in Directives'
+description: 'Master DativeJS built-in directives for refs, animations, transitions, and more'
+icon: 'wand-magic-sparkles'
+---
+
+DativeJS provides a rich set of built-in directives that enhance your templates with powerful functionality. These directives handle everything from element references to animations and transitions.
+
+## Overview
+
+Directives are special attributes that start with `dv-` or use shorthand syntax. They provide declarative ways to manipulate the DOM, create references, and add dynamic behavior to your components.
+
+<Note>
+Most directives support both the `dv-` prefix and shorthand syntax. Use whichever style fits your project best.
+</Note>
+
+## Element References
+
+### dv-ref / ref
+
+Create references to DOM elements that can be accessed throughout your component:
+
+<CodeGroup>
+```html Using ref
+<input ref="emailInput" />
+<button on:click="focusEmail()">Focus Email</button>
+```
+
+```javascript Accessing refs
+const app = new Dative({
+  el: '#app',
+  data() {
+    return {}
+  },
+  methods: {
+    focusEmail() {
+      // Access the element via $ref
+      this.$ref.emailInput.focus();
+      this.$ref.emailInput.select();
+    },
+    getEmailValue() {
+      return this.$ref.emailInput.value;
+    }
+  },
+  template: `
+    <div>
+      <input ref="emailInput" placeholder="Enter email" />
+      <button on:click="focusEmail()">Focus Email</button>
+    </div>
+  `
+});
+```
+</CodeGroup>
+
+<Steps>
+
+<Step title="Add the ref directive">
+Add `ref="name"` or `dv-ref="name"` to any element:
+
+```html
+<div ref="container">
+  <video ref="player" src="video.mp4"></video>
+  <canvas ref="canvas" width="800" height="600"></canvas>
+</div>
+```
+</Step>
+
+<Step title="Access in methods">
+References are available in `this.$ref`:
+
+```javascript
+methods: {
+  playVideo() {
+    this.$ref.player.play();
+  },
+  drawOnCanvas() {
+    const ctx = this.$ref.canvas.getContext('2d');
+    ctx.fillRect(0, 0, 100, 100);
+  },
+  getContainerSize() {
+    return this.$ref.container.getBoundingClientRect();
+  }
+}
+```
+</Step>
+
+<Step title="Use in lifecycle hooks">
+Access refs after the component is mounted:
+
+```javascript
+const app = new Dative({
+  el: '#app',
+  data() {
+    return {}
+  },
+  onmounted() {
+    // Refs are available after mounting
+    console.log('Input element:', this.$ref.emailInput);
+    this.$ref.emailInput.focus();
+  },
+  template: `<input ref="emailInput" />`
+});
+```
+</Step>
+
+</Steps>
+
+<Tip>
+Refs provide direct DOM access when you need it, but remember that DativeJS's reactive data binding usually handles most use cases without needing refs.
+</Tip>
+
+## dv-cloak
+
+The `dv-cloak` directive prevents the flash of unstyled content (FOUC) by hiding elements until DativeJS has finished compiling the template:
+
+```html
+<div dv-cloak>
+  {{ message }}
+  <!-- This content won't show until DativeJS is ready -->
+</div>
+```
+
+```css
+/* Add this CSS to your stylesheet */
+[dv-cloak] {
+  display: none;
+}
+```
+
+<CodeGroup>
+```html Template
+<div id="app" dv-cloak>
+  <h1>{{ title }}</h1>
+  <p>{{ description }}</p>
+  
+  #each items as item
+    <div class="item">{{ item.name }}</div>
+  /each
+</div>
+```
+
+```css Styles
+[dv-cloak] {
+  display: none;
+}
+```
+
+```javascript Component
+const app = new Dative({
+  el: '#app',
+  data() {
+    return {
+      title: 'My App',
+      description: 'Welcome to DativeJS',
+      items: [
+        { name: 'Item 1' },
+        { name: 'Item 2' },
+        { name: 'Item 3' }
+      ]
+    }
+  },
+  template: `
+    <div dv-cloak>
+      <h1>{{ title }}</h1>
+      <p>{{ description }}</p>
+      
+      #each items as item
+        <div class="item">{{ item.name }}</div>
+      /each
+    </div>
+  `
+});
+```
+</CodeGroup>
+
+<Warning>
+The `dv-cloak` directive should have no value. Simply add it to the element: `<div dv-cloak></div>`
+</Warning>
+
+## Animation Directives
+
+### animate: / @
+
+Add animations to elements using the `animate:` or `@` directive:
+
+```html
+<!-- Using animate: -->
+<div animate:fadein="200,100">Fade in animation</div>
+
+<!-- Using @ shorthand -->
+<div @bounce="300,0">Bounce animation</div>
+```
+
+The syntax is: `animate:name="duration,delay,ease"`
+
+<Steps>
+
+<Step title="Built-in animations">
+DativeJS includes two built-in animations:
+
+```html
+<!-- Fade in: duration=200ms, delay=100ms -->
+<div @fadein="200,100">
+  This element fades in
+</div>
+
+<!-- Bounce: duration=300ms, delay=0ms -->
+<div @bounce="300,0">
+  This element bounces
+</div>
+```
+</Step>
+
+<Step title="Custom animations">
+Define custom animations in the `animate` option:
+
+```javascript
+const app = new Dative({
+  el: '#app',
+  data() {
+    return {
+      showElement: true
+    }
+  },
+  animate: {
+    slideIn({ animate, setStyle, duration, delay, ease }) {
+      // Use the Web Animations API
+      animate([
+        { transform: 'translateX(-100%)', opacity: 0 },
+        { transform: 'translateX(0)', opacity: 1 }
+      ], {
+        duration: duration || 500,
+        delay: delay || 0,
+        easing: ease || 'ease-out'
+      });
+    },
+    fadeScale({ animate, setStyle, duration, delay, ease }) {
+      animate([
+        { opacity: 0, transform: 'scale(0.5)' },
+        { opacity: 1, transform: 'scale(1)' }
+      ], {
+        duration: duration || 400,
+        delay: delay || 0,
+        easing: ease || 'cubic-bezier(0.4, 0.0, 0.2, 1)'
+      });
+    },
+    pulse({ setStyle, duration }) {
+      // Or use setStyle to set CSS directly
+      setStyle({
+        animation: `pulse ${duration || 1000}ms infinite`
+      });
+    }
+  },
+  template: `
+    <div>
+      <div @slideIn="500,0,ease-out">Slides in from left</div>
+      <div @fadeScale="400,100">Fades and scales</div>
+      <div @pulse="1000">Pulses continuously</div>
+    </div>
+  `
+});
+```
+</Step>
+
+<Step title="Animation parameters">
+Custom animations receive these parameters:
+
+- `animate` - The element's animate() method (Web Animations API)
+- `setStyle` - Function to set CSS styles on the element
+- `duration` - Animation duration in milliseconds
+- `delay` - Animation delay in milliseconds
+- `ease` - Easing function string
+
+```javascript
+animate: {
+  customAnim({ animate, setStyle, duration, delay, ease }) {
+    console.log('Duration:', duration); // From @customAnim="500,0"
+    console.log('Delay:', delay);
+    console.log('Ease:', ease);
+    
+    // Use Web Animations API
+    animate([...keyframes], { duration, delay, easing: ease });
+    
+    // Or set styles directly
+    setStyle({
+      opacity: '1',
+      transform: 'translateY(0)'
+    });
+  }
+}
+```
+</Step>
+
+</Steps>
+
+## Transition Directives
+
+### transition / #
+
+Apply CSS transition classes to elements for enter/leave animations:
+
+```html
+<!-- Using transition: -->
+<div transition.enter="fade">Element with enter transition</div>
+
+<!-- Using # shorthand -->
+<div #.leave="slide">Element with leave transition</div>
+
+<!-- Multiple modifiers -->
+<div transition.before-enter.enter.leave="fade">Full transition</div>
+```
+
+<CodeGroup>
+```html Template
+<div>
+  <button on:click="showModal = !showModal">Toggle Modal</button>
+  
+  #if showModal
+    <div class="modal" transition.enter.leave="fade">
+      <div class="modal-content" transition.enter="slideDown">
+        <h2>Modal Title</h2>
+        <p>Modal content here</p>
+        <button on:click="showModal = false">Close</button>
+      </div>
+    </div>
+  /if
+</div>
+```
+
+```css CSS Classes
+/* Fade transition classes */
+.fade-enter {
+  opacity: 1;
+  transition: opacity 300ms;
+}
+
+.fade-before-enter {
+  opacity: 0;
+}
+
+.fade-leave {
+  opacity: 0;
+  transition: opacity 300ms;
+}
+
+/* Slide down transition */
+.slideDown-enter {
+  transform: translateY(0);
+  opacity: 1;
+  transition: all 400ms ease-out;
+}
+
+.slideDown-before-enter {
+  transform: translateY(-20px);
+  opacity: 0;
+}
+```
+
+```javascript Component
+const app = new Dative({
+  el: '#app',
+  data() {
+    return {
+      showModal: false
+    }
+  },
+  template: `
+    <div>
+      <button on:click="showModal = !showModal">Toggle Modal</button>
+      
+      #if showModal
+        <div class="modal" transition.enter.leave="fade">
+          <div class="modal-content" transition.enter="slideDown">
+            <h2>Modal Title</h2>
+            <p>Modal content here</p>
+            <button on:click="showModal = false">Close</button>
+          </div>
+        </div>
+      /if
+    </div>
+  `
+});
+```
+</CodeGroup>
+
+### Transition Modifiers
+
+The transition directive supports four modifiers:
+
+- `.before-enter` - Applied before the element enters
+- `.enter` - Applied when the element enters
+- `.before-leave` - Applied before the element leaves
+- `.leave` - Applied when the element leaves
+
+```html
+<!-- Apply specific transition phases -->
+<div transition.before-enter.enter="fade">Fade in only</div>
+<div transition.leave.before-leave="fade">Fade out only</div>
+<div transition.before-enter.enter.leave.before-leave="fade">Complete fade</div>
+```
+
+## Custom Directives
+
+Create your own custom directives using the `directives` option:
+
+```javascript
+const app = new Dative({
+  el: '#app',
+  data() {
+    return {
+      color: 'red'
+    }
+  },
+  directives: {
+    // Custom directive: dv-highlight
+    highlight(elem, { bind }) {
+      // bind.value contains the evaluated expression
+      elem.style.backgroundColor = bind.value;
+      elem.style.padding = '10px';
+    },
+    
+    // Custom directive with arguments: dv-tooltip:position
+    tooltip(elem, { bind }) {
+      const position = bind.args; // 'top', 'bottom', etc.
+      const text = bind.value;
+      
+      elem.title = text;
+      elem.setAttribute('data-tooltip-position', position);
+    },
+    
+    // Custom directive with modifiers: dv-click-outside.close
+    clickOutside(elem, { bind }) {
+      const handler = bind.value;
+      const modifiers = bind.modifiers; // ['close']
+      
+      const handleClick = (e) => {
+        if (!elem.contains(e.target)) {
+          handler();
+        }
+      };
+      
+      document.addEventListener('click', handleClick);
+    }
+  },
+  template: `
+    <div>
+      <div dv-highlight="color">Highlighted with {{ color }}</div>
+      <button dv-tooltip:top="'Click me for info'">Hover Me</button>
+    </div>
+  `
+});
+```
+
+### Directive Binding Object
+
+Custom directives receive a binding object with:
+
+- `value` - The evaluated value of the directive expression
+- `args` - Arguments passed after the colon (e.g., `dv-directive:arg`)
+- `name` - The full directive name
+- `expression` - The raw expression string
+- `modifiers` - Array of modifiers (e.g., `dv-directive.mod1.mod2`)
+
+```javascript
+directives: {
+  myDirective(elem, { bind }) {
+    console.log('Value:', bind.value);        // Evaluated value
+    console.log('Args:', bind.args);          // Arguments
+    console.log('Name:', bind.name);          // 'dv-myDirective:arg'
+    console.log('Expression:', bind.expression); // Raw expression
+    console.log('Modifiers:', bind.modifiers);   // ['mod1', 'mod2']
+  }
+}
+```
+
+## Practical Examples
+
+### Auto-focus Directive
+
+```javascript
+const app = new Dative({
+  el: '#app',
+  directives: {
+    autofocus(elem, { bind }) {
+      if (bind.value !== false) {
+        setTimeout(() => elem.focus(), 0);
+      }
+    }
+  },
+  template: `
+    <div>
+      <input dv-autofocus="true" placeholder="Auto-focused" />
+    </div>
+  `
+});
+```
+
+### Lazy Load Images
+
+```javascript
+const app = new Dative({
+  el: '#app',
+  directives: {
+    lazyload(elem, { bind }) {
+      const imageSrc = bind.value;
+      
+      const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+          if (entry.isIntersecting) {
+            elem.src = imageSrc;
+            observer.unobserve(elem);
+          }
+        });
+      });
+      
+      observer.observe(elem);
+    }
+  },
+  data() {
+    return {
+      images: [
+        'https://example.com/image1.jpg',
+        'https://example.com/image2.jpg',
+        'https://example.com/image3.jpg'
+      ]
+    }
+  },
+  template: `
+    <div>
+      #each images as imgSrc
+        <img dv-lazyload="imgSrc" alt="Lazy loaded image" />
+      /each
+    </div>
+  `
+});
+```
+
+### Click Outside Directive
+
+```javascript
+const dropdownApp = new Dative({
+  el: '#dropdown',
+  data() {
+    return {
+      isOpen: false
+    }
+  },
+  directives: {
+    clickOutside(elem, { bind }) {
+      const handler = bind.value;
+      
+      const handleClick = (e) => {
+        if (!elem.contains(e.target)) {
+          handler();
+        }
+      };
+      
+      // Store handler to remove later
+      elem._clickOutsideHandler = handleClick;
+      document.addEventListener('click', handleClick);
+    }
+  },
+  methods: {
+    closeDropdown() {
+      this.isOpen = false;
+    }
+  },
+  template: `
+    <div dv-click-outside="closeDropdown">
+      <button on:click="isOpen = !isOpen">Toggle Dropdown</button>
+      
+      #if isOpen
+        <ul class="dropdown-menu">
+          <li>Option 1</li>
+          <li>Option 2</li>
+          <li>Option 3</li>
+        </ul>
+      /if
+    </div>
+  `
+});
+```
+
+## Best Practices
+
+<CardGroup cols={2}>
+<Card title="Use Refs Sparingly" icon="database">
+Prefer reactive data binding over direct DOM manipulation with refs.
+</Card>
+
+<Card title="Name Refs Descriptively" icon="tag">
+Use clear, descriptive names for refs: `emailInput`, `mainContainer`, `videoPlayer`.
+</Card>
+
+<Card title="Add dv-cloak" icon="eye-slash">
+Always add `dv-cloak` to prevent FOUC on initial page load.
+</Card>
+
+<Card title="Custom Directives" icon="puzzle-piece">
+Create custom directives for reusable DOM manipulation patterns.
+</Card>
+</CardGroup>
+
+<Warning>
+When creating custom directives, be careful to clean up event listeners and observers to prevent memory leaks.
+</Warning>
+
+## Next Steps
+
+<CardGroup cols={2}>
+<Card title="Animations" icon="play" href="/guides/animations">
+Dive deep into the animation system and create custom animations
+</Card>
+
+<Card title="Styling" icon="palette" href="/guides/styling">
+Learn about scoped CSS and component styling
+</Card>
+</CardGroup>

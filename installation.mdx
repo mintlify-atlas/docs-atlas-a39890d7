@@ -1,0 +1,250 @@
+---
+title: Installation
+description: Get started with DativeJS in your project using npm, yarn, pnpm, or a CDN
+---
+
+## Package manager installation
+
+Install DativeJS using your preferred package manager:
+
+<CodeGroup>
+
+```bash npm
+npm install dativejs
+```
+
+```bash yarn
+yarn add dativejs
+```
+
+```bash pnpm
+pnpm add dativejs
+```
+
+</CodeGroup>
+
+### Importing DativeJS
+
+Once installed, you can import DativeJS in your JavaScript files:
+
+<CodeGroup>
+
+```javascript ES modules
+import Dative from 'dativejs';
+
+const app = new Dative({
+  el: '#app',
+  data() {
+    return {
+      message: 'Hello, DativeJS!'
+    }
+  },
+  template: '<div>{{ message }}</div>'
+});
+```
+
+```javascript CommonJS
+const Dative = require('dativejs');
+
+const app = new Dative({
+  el: '#app',
+  data() {
+    return {
+      message: 'Hello, DativeJS!'
+    }
+  },
+  template: '<div>{{ message }}</div>'
+});
+```
+
+</CodeGroup>
+
+## CDN usage
+
+For quick prototyping or simple projects, you can use DativeJS directly from a CDN:
+
+<CodeGroup>
+
+```html unpkg
+<!DOCTYPE html>
+<html>
+<head>
+  <title>DativeJS App</title>
+</head>
+<body>
+  <div id="app"></div>
+
+  <script src="https://unpkg.com/dativejs@2.0.0-alpha.0/dist/dative.min.js"></script>
+  <script>
+    const app = new Dative({
+      el: '#app',
+      data() {
+        return {
+          message: 'Hello from CDN!'
+        }
+      },
+      template: '<h1>{{ message }}</h1>'
+    });
+  </script>
+</body>
+</html>
+```
+
+```html jsDelivr
+<!DOCTYPE html>
+<html>
+<head>
+  <title>DativeJS App</title>
+</head>
+<body>
+  <div id="app"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/dativejs@2.0.0-alpha.0/dist/dative.min.js"></script>
+  <script>
+    const app = new Dative({
+      el: '#app',
+      data() {
+        return {
+          message: 'Hello from CDN!'
+        }
+      },
+      template: '<h1>{{ message }}</h1>'
+    });
+  </script>
+</body>
+</html>
+```
+
+</CodeGroup>
+
+<Note>
+  When using the CDN version, DativeJS is available as a global `Dative` variable.
+</Note>
+
+## Module formats
+
+DativeJS is distributed in multiple formats to support different development environments:
+
+<AccordionGroup>
+  <Accordion title="ESM (ES Modules)" icon="file-code">
+    The ES module build is available at `dist/dative.esm.js`. This is the recommended format for modern bundlers like Webpack, Rollup, or Vite.
+
+    ```javascript
+    import Dative from 'dativejs';
+    ```
+
+    The package.json `module` field points to this build by default when using bundlers.
+  </Accordion>
+
+  <Accordion title="CommonJS" icon="node-js">
+    The CommonJS build is available for Node.js environments and legacy bundlers. It's located at the package root.
+
+    ```javascript
+    const Dative = require('dativejs');
+    ```
+
+    The package.json `main` field points to `index.js`, which loads the appropriate CommonJS build based on the environment.
+  </Accordion>
+
+  <Accordion title="IIFE (Browser)" icon="globe">
+    The Immediately Invoked Function Expression (IIFE) build is available at `dist/dative.min.js`. This is used for CDN distribution and can be directly included in HTML.
+
+    ```html
+    <script src="path/to/dative.min.js"></script>
+    <script>
+      const app = new Dative({ /* options */ });
+    </script>
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## TypeScript support
+
+DativeJS includes TypeScript type definitions out of the box. The types are located in the `types/index.d.ts` file and are automatically recognized by TypeScript:
+
+```typescript
+import Dative, { DativeOptions } from 'dativejs';
+
+const options: DativeOptions = {
+  el: '#app',
+  data() {
+    return {
+      count: 0
+    }
+  },
+  methods: {
+    increment() {
+      this.count++;
+    }
+  },
+  template: '<button dv-on:click="increment()">Count: {{ count }}</button>'
+};
+
+const app = new Dative(options);
+```
+
+## Importing animation utilities
+
+DativeJS provides a separate animation module that can be imported when needed:
+
+<CodeGroup>
+
+```javascript ES modules
+import { fadeIn, bounce } from 'dativejs/animation';
+```
+
+```javascript CommonJS
+const { fadeIn, bounce } = require('dativejs/animation');
+```
+
+</CodeGroup>
+
+<Note>
+  The animation module is optional and can be used standalone or with the main DativeJS framework.
+</Note>
+
+## Browser compatibility
+
+DativeJS requires the following browser APIs:
+
+- `DOMParser` for template parsing
+- `Proxy` for reactivity (for advanced features)
+- ES6+ features (Promise, Array methods, etc.)
+
+### Supported browsers
+
+- Chrome 49+
+- Firefox 52+
+- Safari 10+
+- Edge 79+
+
+For older browser support, you may need to include polyfills for modern JavaScript features.
+
+## Verification
+
+To verify that DativeJS is installed correctly, you can check the version:
+
+```javascript
+import Dative from 'dativejs';
+
+console.log(Dative.version); // "2.0.0-alpha.0"
+```
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card
+    title="Quickstart"
+    icon="rocket"
+    href="/quickstart"
+  >
+    Build your first DativeJS application
+  </Card>
+  <Card
+    title="Core concepts"
+    icon="book"
+    href="/core/reactivity"
+  >
+    Learn about reactivity and data binding
+  </Card>
+</CardGroup>

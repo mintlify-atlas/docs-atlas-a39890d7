@@ -1,0 +1,678 @@
+---
+title: Custom Directives
+description: Create powerful custom directives to extend DativeJS template functionality
+---
+
+## Overview
+
+Custom directives allow you to extend DativeJS's template syntax with your own functionality. Directives can manipulate DOM elements, add event listeners, apply styles, and more.
+
+## Defining Custom Directives
+
+Directives are defined in the `directives` option of a Dative instance or component:
+
+```javascript
+const app = new Dative({
+  el: '#app',
+  directives: {
+    focus: (el, { bind }) => {
+      el.focus();
+    },
+    color: (el, { bind }) => {
+      el.style.color = bind.value;
+    }
+  },
+  template: `
+    <div>
+      <input dv-focus />
+      <p dv-color="'red'">Red text</p>
+    </div>
+  `
+});
+```
+
+## Directive Syntax
+
+### Basic Directive
+
+Directives are prefixed with `dv-` in templates:
+
+```html
+<div dv-directive-name="expression"></div>
+```
+
+### Directive with Arguments
+
+Use `:` to pass arguments:
+
+```html
+<div dv-directive:argument="expression"></div>
+```
+
+### Directive with Modifiers
+
+Use `.` to add modifiers:
+
+```html
+<div dv-directive.modifier1.modifier2="expression"></div>
+```
+
+## The Directive API
+
+### Directive Function Signature
+
+Every directive receives two parameters:
+
+```javascript
+function myDirective(el, { bind }) {
+  // el: The DOM element the directive is bound to
+  // bind: Object containing directive information
+}
+```
+
+### The `bind` Object
+
+The `bind` object contains all information about the directive:
+
+<AccordionGroup>
+  <Accordion title="bind.value">
+    The evaluated value of the directive's expression.
+    
+    ```javascript
+    directives: {
+      color: (el, { bind }) => {
+        console.log(bind.value); // Evaluated result
+        el.style.color = bind.value;
+      }
+    }
+    ```
+    
+    Usage: `<p dv-color="primaryColor"></p>`
+    
+    If `primaryColor` is `'blue'`, then `bind.value` will be `'blue'`.
+  </Accordion>
+  
+  <Accordion title="bind.args">
+    The argument passed after the colon.
+    
+    ```javascript
+    directives: {
+      scroll: (el, { bind }) => {
+        console.log(bind.args); // 'smooth' or 'auto'
+        el.scrollIntoView({ behavior: bind.args });
+      }
+    }
+    ```
+    
+    Usage: `<div dv-scroll:smooth></div>`
+  </Accordion>
+  
+  <Accordion title="bind.name">
+    The full directive name including prefix, args, and modifiers.
+    
+    ```javascript
+    directives: {
+      tooltip: (el, { bind }) => {
+        console.log(bind.name); 
+        // 'dv-tooltip:top.dark'
+      }
+    }
+    ```
+    
+    Usage: `<button dv-tooltip:top.dark="'Help text'"></button>`
+  </Accordion>
+  
+  <Accordion title="bind.expression">
+    The raw expression string (before evaluation).
+    
+    ```javascript
+    directives: {
+      log: (el, { bind }) => {
+        console.log(bind.expression); // 'user.name'
+        console.log(bind.value);      // 'John'
+      }
+    }
+    ```
+    
+    Usage: `<div dv-log="user.name"></div>`
+  </Accordion>
+  
+  <Accordion title="bind.modifiers">
+    An array of modifier strings.
+    
+    ```javascript
+    directives: {
+      click: (el, { bind }) => {
+        console.log(bind.modifiers); // ['prevent', 'stop']
+        
+        const hasPrevent = bind.modifiers.includes('prevent');
+        const hasStop = bind.modifiers.includes('stop');
+      }
+    }
+    ```
+    
+    Usage: `<button dv-click.prevent.stop="handleClick()"></button>`
+  </Accordion>
+</AccordionGroup>
+
+## Directive Metadata
+
+Directives store metadata in the `_dv_directives_` property on both the directive function and the element:
+
+```javascript
+directives: {
+  custom: (el, { bind }) => {
+    // Access directive metadata
+    console.log(el._dv_directives_);
+    // {
+    //   active: true,
+    //   args: 'argument',
+    //   value: evaluatedValue,
+    //   expression: 'rawExpression',
+    //   name: 'dv-custom:argument.modifier',
+    //   modifiers: ['modifier']
+    // }
+  }
+}
+```
+
+## Practical Examples
+
+### Focus Directive
+
+Automatically focus an element when it's rendered:
+
+```javascript
+const app = new Dative({
+  el: '#app',
+  directives: {
+    focus: (el, { bind }) => {
+      // Auto-focus the element
+      setTimeout(() => el.focus(), 0);
+    }
+  },
+  template: `
+    <div>
+      <input dv-focus type="text" placeholder="This will be focused" />
+    </div>
+  `
+});
+```
+
+### Tooltip Directive
+
+Create a tooltip directive with position and theme modifiers:
+
+```javascript
+const app = new Dative({
+  el: '#app',
+  directives: {
+    tooltip: (el, { bind }) => {
+      const text = bind.value;
+      const position = bind.args || 'top';
+      const isDark = bind.modifiers.includes('dark');
+      
+      // Create tooltip element
+      const tooltip = document.createElement('div');
+      tooltip.className = `tooltip tooltip-${position} ${isDark ? 'dark' : 'light'}`;
+      tooltip.textContent = text;
+      tooltip.style.cssText = `
+        position: absolute;
+        padding: 8px 12px;
+        background: ${isDark ? '#333' : '#fff'};
+        color: ${isDark ? '#fff' : '#333'};
+        border: 1px solid ${isDark ? '#333' : '#ddd'};
+        border-radius: 4px;
+        font-size: 14px;
+        pointer-events: none;
+        opacity: 0;
+        transition: opacity 0.3s;
+        z-index: 1000;
+      `;
+      
+      // Position tooltip
+      const positionTooltip = () => {
+        const rect = el.getBoundingClientRect();
+        const tooltipRect = tooltip.getBoundingClientRect();
+        
+        switch (position) {
+          case 'top':
+            tooltip.style.left = `${rect.left + rect.width / 2 - tooltipRect.width / 2}px`;
+            tooltip.style.top = `${rect.top - tooltipRect.height - 8}px`;
+            break;
+          case 'bottom':
+            tooltip.style.left = `${rect.left + rect.width / 2 - tooltipRect.width / 2}px`;
+            tooltip.style.top = `${rect.bottom + 8}px`;
+            break;
+          case 'left':
+            tooltip.style.left = `${rect.left - tooltipRect.width - 8}px`;
+            tooltip.style.top = `${rect.top + rect.height / 2 - tooltipRect.height / 2}px`;
+            break;
+          case 'right':
+            tooltip.style.left = `${rect.right + 8}px`;
+            tooltip.style.top = `${rect.top + rect.height / 2 - tooltipRect.height / 2}px`;
+            break;
+        }
+      };
+      
+      // Event handlers
+      const showTooltip = () => {
+        document.body.appendChild(tooltip);
+        positionTooltip();
+        tooltip.style.opacity = '1';
+      };
+      
+      const hideTooltip = () => {
+        tooltip.style.opacity = '0';
+        setTimeout(() => tooltip.remove(), 300);
+      };
+      
+      el.addEventListener('mouseenter', showTooltip);
+      el.addEventListener('mouseleave', hideTooltip);
+      
+      // Store cleanup function
+      el._tooltipCleanup = () => {
+        el.removeEventListener('mouseenter', showTooltip);
+        el.removeEventListener('mouseleave', hideTooltip);
+        tooltip.remove();
+      };
+    }
+  },
+  data: () => ({
+    helpText: 'This is a helpful tooltip'
+  }),
+  template: `
+    <div>
+      <button dv-tooltip:top="helpText">Hover me (top)</button>
+      <button dv-tooltip:bottom.dark="'Dark theme tooltip'">Hover me (dark)</button>
+      <button dv-tooltip:right="'Right aligned'">Hover me (right)</button>
+    </div>
+  `
+});
+```
+
+### Click Outside Directive
+
+Detect clicks outside an element:
+
+```javascript
+const app = new Dative({
+  el: '#app',
+  directives: {
+    clickOutside: (el, { bind }) => {
+      const handler = (event) => {
+        if (!el.contains(event.target)) {
+          // Execute the provided expression
+          bind.value();
+        }
+      };
+      
+      // Add delay to avoid immediate trigger
+      setTimeout(() => {
+        document.addEventListener('click', handler);
+      }, 0);
+      
+      // Store cleanup
+      el._clickOutsideCleanup = () => {
+        document.removeEventListener('click', handler);
+      };
+    }
+  },
+  data: () => ({
+    isOpen: true
+  }),
+  methods: {
+    close() {
+      this.isOpen = false;
+    }
+  },
+  template: `
+    <div>
+      #if isOpen
+        <div 
+          class="dropdown" 
+          dv-clickOutside="close"
+          style="padding: 20px; background: white; border: 1px solid #ddd;"
+        >
+          <p>Click outside to close</p>
+        </div>
+      /if
+    </div>
+  `
+});
+```
+
+### Lazy Load Images Directive
+
+```javascript
+const app = new Dative({
+  el: '#app',
+  directives: {
+    lazy: (el, { bind }) => {
+      const imageSrc = bind.value;
+      
+      // Create intersection observer
+      const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+          if (entry.isIntersecting) {
+            el.src = imageSrc;
+            el.classList.add('loaded');
+            observer.disconnect();
+          }
+        });
+      }, {
+        rootMargin: '50px'
+      });
+      
+      // Set placeholder
+      el.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="100" height="100"%3E%3Crect fill="%23ddd" width="100" height="100"/%3E%3C/svg%3E';
+      
+      observer.observe(el);
+      
+      el._lazyCleanup = () => observer.disconnect();
+    }
+  },
+  data: () => ({
+    images: [
+      'https://via.placeholder.com/400x300/FF6B6B',
+      'https://via.placeholder.com/400x300/4ECDC4',
+      'https://via.placeholder.com/400x300/45B7D1'
+    ]
+  }),
+  template: `
+    <div>
+      #each img as images
+        <img dv-lazy="img" alt="Lazy loaded image" />
+      /each
+    </div>
+  `
+});
+```
+
+### Animation Directive
+
+```javascript
+const app = new Dative({
+  el: '#app',
+  directives: {
+    animate: (el, { bind }) => {
+      const animation = bind.args || 'fadeIn';
+      const duration = bind.modifiers.includes('slow') ? 1000 : 
+                       bind.modifiers.includes('fast') ? 200 : 500;
+      
+      const animations = {
+        fadeIn: [
+          { opacity: 0 },
+          { opacity: 1 }
+        ],
+        slideIn: [
+          { transform: 'translateX(-100%)', opacity: 0 },
+          { transform: 'translateX(0)', opacity: 1 }
+        ],
+        scaleIn: [
+          { transform: 'scale(0)', opacity: 0 },
+          { transform: 'scale(1)', opacity: 1 }
+        ]
+      };
+      
+      el.animate(animations[animation] || animations.fadeIn, {
+        duration,
+        easing: 'ease-out',
+        fill: 'forwards'
+      });
+    }
+  },
+  template: `
+    <div>
+      <div dv-animate:fadeIn>Fade in</div>
+      <div dv-animate:slideIn.slow>Slide in slowly</div>
+      <div dv-animate:scaleIn.fast>Scale in fast</div>
+    </div>
+  `
+});
+```
+
+### Scroll Directive
+
+```javascript
+const app = new Dative({
+  el: '#app',
+  directives: {
+    scroll: (el, { bind }) => {
+      const handler = () => {
+        const scrollData = {
+          top: window.scrollY,
+          left: window.scrollX,
+          direction: window.scrollY > (el._lastScroll || 0) ? 'down' : 'up'
+        };
+        el._lastScroll = window.scrollY;
+        
+        // Call the bound function with scroll data
+        if (typeof bind.value === 'function') {
+          bind.value(scrollData);
+        }
+      };
+      
+      const useThrottle = bind.modifiers.includes('throttle');
+      let throttleTimer;
+      
+      const scrollHandler = useThrottle ? () => {
+        if (!throttleTimer) {
+          throttleTimer = setTimeout(() => {
+            handler();
+            throttleTimer = null;
+          }, 100);
+        }
+      } : handler;
+      
+      window.addEventListener('scroll', scrollHandler);
+      
+      el._scrollCleanup = () => {
+        window.removeEventListener('scroll', scrollHandler);
+      };
+    }
+  },
+  data: () => ({
+    scrollPosition: 0
+  }),
+  methods: {
+    onScroll(data) {
+      this.scrollPosition = data.top;
+    }
+  },
+  template: `
+    <div dv-scroll.throttle="onScroll">
+      <p>Scroll position: {{ scrollPosition }}px</p>
+      <div style="height: 2000px;">Scroll down...</div>
+    </div>
+  `
+});
+```
+
+## Advanced Patterns
+
+### Directive with State
+
+```javascript
+const app = new Dative({
+  directives: {
+    counter: (el, { bind }) => {
+      // Initialize state if it doesn't exist
+      if (!el._counterState) {
+        el._counterState = { count: 0 };
+        
+        el.addEventListener('click', () => {
+          el._counterState.count++;
+          el.textContent = `Clicked ${el._counterState.count} times`;
+        });
+      }
+      
+      // Update from bound value if provided
+      if (bind.value !== undefined) {
+        el._counterState.count = bind.value;
+        el.textContent = `Clicked ${bind.value} times`;
+      }
+    }
+  },
+  template: `
+    <button dv-counter>Click me</button>
+  `
+});
+```
+
+### Directive Composition
+
+```javascript
+const app = new Dative({
+  directives: {
+    // Base directive
+    tooltip: (el, { bind }) => {
+      // Tooltip implementation
+    },
+    
+    // Enhanced directive that uses multiple features
+    popover: (el, { bind }) => {
+      const isInteractive = bind.modifiers.includes('interactive');
+      const trigger = bind.args || 'click';
+      const content = bind.value;
+      
+      const popover = document.createElement('div');
+      popover.className = 'popover';
+      popover.innerHTML = content;
+      popover.style.cssText = `
+        position: absolute;
+        background: white;
+        border: 1px solid #ddd;
+        padding: 16px;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        z-index: 1000;
+        display: none;
+      `;
+      
+      const show = () => {
+        document.body.appendChild(popover);
+        const rect = el.getBoundingClientRect();
+        popover.style.left = `${rect.left}px`;
+        popover.style.top = `${rect.bottom + 8}px`;
+        popover.style.display = 'block';
+      };
+      
+      const hide = () => {
+        popover.style.display = 'none';
+        if (!isInteractive) {
+          popover.remove();
+        }
+      };
+      
+      if (trigger === 'click') {
+        el.addEventListener('click', show);
+        if (!isInteractive) {
+          document.addEventListener('click', (e) => {
+            if (!el.contains(e.target) && !popover.contains(e.target)) {
+              hide();
+            }
+          });
+        }
+      } else if (trigger === 'hover') {
+        el.addEventListener('mouseenter', show);
+        el.addEventListener('mouseleave', hide);
+      }
+    }
+  },
+  template: `
+    <div>
+      <button dv-popover:click="'<p>Popover content</p>'">Click me</button>
+      <button dv-popover:hover.interactive="'<button>Interactive</button>'">Hover me</button>
+    </div>
+  `
+});
+```
+
+## Directive Best Practices
+
+<Warning>
+Always clean up event listeners and resources in your directives to prevent memory leaks.
+</Warning>
+
+### Cleanup Pattern
+
+```javascript
+directives: {
+  myDirective: (el, { bind }) => {
+    const handler = () => {
+      // Do something
+    };
+    
+    element.addEventListener('event', handler);
+    
+    // Store cleanup function
+    el._myDirectiveCleanup = () => {
+      element.removeEventListener('event', handler);
+    };
+  }
+}
+```
+
+### Type Checking
+
+```javascript
+directives: {
+  safeDirective: (el, { bind }) => {
+    // Validate bind.value
+    if (typeof bind.value !== 'string') {
+      console.warn('safeDirective expects a string value');
+      return;
+    }
+    
+    // Use the value safely
+    el.textContent = bind.value;
+  }
+}
+```
+
+### Modifier Handling
+
+```javascript
+directives: {
+  flexible: (el, { bind }) => {
+    const hasPrevent = bind.modifiers.includes('prevent');
+    const hasStop = bind.modifiers.includes('stop');
+    const isPassive = bind.modifiers.includes('passive');
+    
+    const handler = (e) => {
+      if (hasPrevent) e.preventDefault();
+      if (hasStop) e.stopPropagation();
+      bind.value(e);
+    };
+    
+    el.addEventListener('click', handler, { passive: isPassive });
+  }
+}
+```
+
+## Using Directives in Components
+
+```javascript
+const MyComponent = Dative.extend({
+  directives: {
+    highlight: (el, { bind }) => {
+      el.style.backgroundColor = bind.value || 'yellow';
+    }
+  },
+  data: () => ({
+    color: 'lightblue'
+  }),
+  template: `
+    <div>
+      <p dv-highlight="color">This text is highlighted</p>
+    </div>
+  `
+});
+
+const instance = new MyComponent({ el: '#app' });
+```
+
+<Note>
+Directives defined in components are only available within that component's template. To create global directives, define them on the main Dative instance or extend the prototype.
+</Note>

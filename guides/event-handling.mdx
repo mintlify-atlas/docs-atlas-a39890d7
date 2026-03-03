@@ -1,0 +1,558 @@
+---
+title: 'Event Handling'
+description: 'Handle user interactions with DativeJS event directives using dv-on: and on: syntax'
+icon: 'hand-pointer'
+---
+
+DativeJS provides intuitive event handling through the `dv-on:` and `on:` directives. These directives allow you to listen to DOM events and execute code when they occur.
+
+## Overview
+
+Event handlers in DativeJS are automatically bound to your component instance, giving you access to component data and methods. The framework supports all standard DOM events and custom events.
+
+<Note>
+Both `dv-on:` and `on:` work identically - the `on:` shorthand is more concise and commonly used.
+</Note>
+
+## Basic Event Handling
+
+Attach event listeners using the `on:` directive followed by the event name:
+
+<CodeGroup>
+```html Template
+<button on:click="handleClick()">Click Me</button>
+```
+
+```javascript Component
+const app = new Dative({
+  el: '#app',
+  data() {
+    return {
+      count: 0
+    }
+  },
+  methods: {
+    handleClick() {
+      this.count++;
+      console.log('Button clicked!', this.count);
+    }
+  },
+  template: `
+    <div>
+      <p>Count: {{ count }}</p>
+      <button on:click="handleClick()">Click Me</button>
+    </div>
+  `
+});
+```
+</CodeGroup>
+
+## Inline Event Handlers
+
+You can write simple expressions directly in the event handler:
+
+```html
+<button on:click="count++">Increment</button>
+<button on:click="count--">Decrement</button>
+<button on:click="count = 0">Reset</button>
+```
+
+```javascript
+const counter = new Dative({
+  el: '#counter',
+  data() {
+    return {
+      count: 0
+    }
+  },
+  template: `
+    <div class="counter">
+      <h2>Count: {{ count }}</h2>
+      <button on:click="count++">Increment</button>
+      <button on:click="count--">Decrement</button>
+      <button on:click="count = 0">Reset</button>
+    </div>
+  `
+});
+```
+
+## The $event Parameter
+
+Access the native DOM event object using the special `$event` parameter:
+
+<Steps>
+
+<Step title="Access event properties">
+Use `$event` to access event details:
+
+```html
+<input on:keyup="handleKeyPress($event)" />
+```
+
+```javascript
+methods: {
+  handleKeyPress(evt) {
+    console.log('Key pressed:', evt.key);
+    console.log('Key code:', evt.keyCode);
+    console.log('Target value:', evt.target.value);
+  }
+}
+```
+</Step>
+
+<Step title="Prevent default behavior">
+Prevent form submission or link navigation:
+
+```html
+<form on:submit="handleSubmit($event)">
+  <input bind:value="email" />
+  <button>Submit</button>
+</form>
+```
+
+```javascript
+methods: {
+  handleSubmit(evt) {
+    evt.preventDefault();
+    console.log('Form submitted:', this.email);
+  }
+}
+```
+</Step>
+
+<Step title="Stop propagation">
+Prevent event bubbling:
+
+```html
+<div on:click="handleParentClick()">
+  <button on:click="handleChildClick($event)">Click</button>
+</div>
+```
+
+```javascript
+methods: {
+  handleChildClick(evt) {
+    evt.stopPropagation();
+    console.log('Child clicked');
+  },
+  handleParentClick() {
+    console.log('Parent clicked');
+  }
+}
+```
+</Step>
+
+</Steps>
+
+## The $self Parameter
+
+The `$self` parameter provides direct access to the DOM element that triggered the event:
+
+```html
+<button on:click="highlightButton($event, $self)">Highlight Me</button>
+```
+
+```javascript
+const app = new Dative({
+  el: '#app',
+  data() {
+    return {}
+  },
+  methods: {
+    highlightButton(evt, elem) {
+      // $self gives you the element directly
+      elem.style.backgroundColor = 'yellow';
+      elem.textContent = 'Highlighted!';
+      
+      // Also available via evt.target
+      console.log(elem === evt.target); // true
+    }
+  },
+  template: `
+    <div>
+      <button on:click="highlightButton($event, $self)">Highlight Me</button>
+    </div>
+  `
+});
+```
+
+<Tip>
+The `$self` parameter is particularly useful when you need to manipulate the element directly without querying the DOM.
+</Tip>
+
+## Common DOM Events
+
+DativeJS supports all standard DOM events:
+
+### Mouse Events
+
+```html
+<div 
+  on:click="handleClick()"
+  on:dblclick="handleDoubleClick()"
+  on:mouseenter="handleMouseEnter($self)"
+  on:mouseleave="handleMouseLeave($self)"
+  on:mousedown="handleMouseDown()"
+  on:mouseup="handleMouseUp()"
+>
+  Interactive Area
+</div>
+```
+
+### Keyboard Events
+
+```html
+<input 
+  on:keydown="handleKeyDown($event)"
+  on:keyup="handleKeyUp($event)"
+  on:keypress="handleKeyPress($event)"
+/>
+```
+
+### Form Events
+
+```html
+<input 
+  on:input="handleInput($event)"
+  on:change="handleChange($event)"
+  on:focus="handleFocus($self)"
+  on:blur="handleBlur($self)"
+/>
+
+<form on:submit="handleSubmit($event)">
+  <!-- form fields -->
+</form>
+```
+
+### Other Common Events
+
+```html
+<div on:scroll="handleScroll($event)">Scrollable content</div>
+<select on:change="handleSelectChange($event)">...</select>
+<input type="file" on:change="handleFileUpload($event)" />
+```
+
+## Inline Conditional Logic
+
+Execute different code based on conditions:
+
+```html
+<input 
+  on:keyup="$event.key === 'Enter' && submitForm()" 
+  bind:value="searchQuery"
+/>
+
+<button on:click="isLoggedIn ? logout() : login()">
+  {{ isLoggedIn ? 'Logout' : 'Login' }}
+</button>
+```
+
+```javascript
+const app = new Dative({
+  el: '#app',
+  data() {
+    return {
+      searchQuery: '',
+      isLoggedIn: false
+    }
+  },
+  methods: {
+    submitForm() {
+      console.log('Searching for:', this.searchQuery);
+    },
+    login() {
+      this.isLoggedIn = true;
+      console.log('Logged in');
+    },
+    logout() {
+      this.isLoggedIn = false;
+      console.log('Logged out');
+    }
+  },
+  template: `
+    <div>
+      <input 
+        on:keyup="$event.key === 'Enter' && submitForm()" 
+        bind:value="searchQuery"
+        placeholder="Search..."
+      />
+      <button on:click="isLoggedIn ? logout() : login()">
+        {{ isLoggedIn ? 'Logout' : 'Login' }}
+      </button>
+    </div>
+  `
+});
+```
+
+## Custom Event Handlers
+
+You can also use the `events` option to create reusable event handlers that work across your component:
+
+```javascript
+const app = new Dative({
+  el: '#app',
+  data() {
+    return {
+      clicks: 0
+    }
+  },
+  events: {
+    click(elem, eventFunction) {
+      // This function is called for all click events
+      console.log('Click event registered on:', elem);
+      // eventFunction is the event handler function
+    },
+    customEvent(elem, eventFunction) {
+      // Handle custom events
+      elem.addEventListener('customEvent', (evt) => {
+        eventFunction(this, 'customEvent handler', elem, evt);
+      });
+    }
+  },
+  template: `
+    <div>
+      <button on:click="clicks++">Clicks: {{ clicks }}</button>
+    </div>
+  `
+});
+```
+
+## Practical Examples
+
+### Search Input with Debounce
+
+```javascript
+const searchApp = new Dative({
+  el: '#search',
+  data() {
+    return {
+      searchTerm: '',
+      results: [],
+      isSearching: false
+    }
+  },
+  methods: {
+    handleSearch(evt) {
+      const value = evt.target.value;
+      this.searchTerm = value;
+      
+      // Clear previous timeout
+      clearTimeout(this.searchTimeout);
+      
+      // Debounce search
+      this.searchTimeout = setTimeout(() => {
+        this.performSearch(value);
+      }, 300);
+    },
+    performSearch(term) {
+      if (!term.trim()) {
+        this.results = [];
+        return;
+      }
+      
+      this.isSearching = true;
+      // Simulate API call
+      setTimeout(() => {
+        this.results = [
+          `Result 1 for "${term}"`,
+          `Result 2 for "${term}"`,
+          `Result 3 for "${term}"`
+        ];
+        this.isSearching = false;
+      }, 500);
+    }
+  },
+  template: `
+    <div class="search-container">
+      <input 
+        on:input="handleSearch($event)"
+        bind:value="searchTerm"
+        placeholder="Search..."
+      />
+      
+      #if isSearching
+        <p>Searching...</p>
+      :else if results.length > 0
+        <ul>
+          #each results as result
+            <li>{{ result }}</li>
+          /each
+        </ul>
+      :else if searchTerm
+        <p>No results found</p>
+      /if
+    </div>
+  `
+});
+```
+
+### Form Validation
+
+```javascript
+const formApp = new Dative({
+  el: '#form',
+  data() {
+    return {
+      email: '',
+      password: '',
+      errors: {}
+    }
+  },
+  methods: {
+    validateEmail() {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!this.email) {
+        this.errors.email = 'Email is required';
+      } else if (!emailRegex.test(this.email)) {
+        this.errors.email = 'Invalid email format';
+      } else {
+        delete this.errors.email;
+      }
+      this.set('errors', this.errors);
+    },
+    validatePassword() {
+      if (!this.password) {
+        this.errors.password = 'Password is required';
+      } else if (this.password.length < 6) {
+        this.errors.password = 'Password must be at least 6 characters';
+      } else {
+        delete this.errors.password;
+      }
+      this.set('errors', this.errors);
+    },
+    handleSubmit(evt) {
+      evt.preventDefault();
+      
+      this.validateEmail();
+      this.validatePassword();
+      
+      if (Object.keys(this.errors).length === 0) {
+        console.log('Form is valid!', {
+          email: this.email,
+          password: this.password
+        });
+      }
+    }
+  },
+  template: `
+    <form on:submit="handleSubmit($event)">
+      <div>
+        <label>Email:</label>
+        <input 
+          bind:value="email"
+          on:blur="validateEmail()"
+          type="email"
+        />
+        #if errors.email
+          <span class="error">{{ errors.email }}</span>
+        /if
+      </div>
+      
+      <div>
+        <label>Password:</label>
+        <input 
+          bind:value="password"
+          on:blur="validatePassword()"
+          type="password"
+        />
+        #if errors.password
+          <span class="error">{{ errors.password }}</span>
+        /if
+      </div>
+      
+      <button type="submit">Submit</button>
+    </form>
+  `
+});
+```
+
+### Toggle and Hover Effects
+
+```javascript
+const interactiveApp = new Dative({
+  el: '#interactive',
+  data() {
+    return {
+      isOpen: false,
+      hoveredItem: null
+    }
+  },
+  methods: {
+    toggle() {
+      this.isOpen = !this.isOpen;
+    },
+    setHovered(item) {
+      this.hoveredItem = item;
+    },
+    clearHovered() {
+      this.hoveredItem = null;
+    }
+  },
+  template: `
+    <div>
+      <button on:click="toggle()">
+        {{ isOpen ? 'Close' : 'Open' }} Menu
+      </button>
+      
+      #if isOpen
+        <ul class="menu">
+          <li 
+            on:mouseenter="setHovered('home')"
+            on:mouseleave="clearHovered()"
+          >
+            Home {{ hoveredItem === 'home' ? '👈' : '' }}
+          </li>
+          <li 
+            on:mouseenter="setHovered('about')"
+            on:mouseleave="clearHovered()"
+          >
+            About {{ hoveredItem === 'about' ? '👈' : '' }}
+          </li>
+          <li 
+            on:mouseenter="setHovered('contact')"
+            on:mouseleave="clearHovered()"
+          >
+            Contact {{ hoveredItem === 'contact' ? '👈' : '' }}
+          </li>
+        </ul>
+      /if
+    </div>
+  `
+});
+```
+
+## Best Practices
+
+<CardGroup cols={2}>
+<Card title="Use Methods for Complex Logic" icon="function">
+Keep your templates clean by moving complex event handlers to methods.
+</Card>
+
+<Card title="Prevent Defaults When Needed" icon="ban">
+Always use `evt.preventDefault()` for form submissions to avoid page reloads.
+</Card>
+
+<Card title="Access Events Properly" icon="circle-info">
+Use `$event` to access the native event object and `$self` for the element.
+</Card>
+
+<Card title="Event Delegation" icon="sitemap">
+Use the `events` option for reusable event handling patterns across your app.
+</Card>
+</CardGroup>
+
+<Warning>
+Event handlers in DativeJS are automatically removed when the component is destroyed, preventing memory leaks.
+</Warning>
+
+## Next Steps
+
+<CardGroup cols={2}>
+<Card title="Data Binding" icon="link" href="/guides/data-binding">
+Learn about two-way data binding with bind: directives
+</Card>
+
+<Card title="Directives" icon="wand-magic-sparkles" href="/guides/directives">
+Explore all built-in directives including refs and conditionals
+</Card>
+</CardGroup>

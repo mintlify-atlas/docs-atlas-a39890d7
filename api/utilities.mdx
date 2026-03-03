@@ -1,0 +1,279 @@
+---
+title: 'Utility Functions'
+description: 'Helper functions and utilities provided by DativeJS'
+---
+
+## Overview
+
+DativeJS provides several utility functions and properties to help with application development, debugging, and framework extension.
+
+## Dative.defineApp()
+
+Creates a new Dative application instance with enhanced validation.
+
+<ParamField path="options" type="DativeOptions" required>
+  Configuration object for the Dative application.
+  
+  All standard [DativeOptions](/api/dative-class#dativeoptions) are supported.
+</ParamField>
+
+<ResponseField name="return" type="Dative">
+  Returns a new Dative instance.
+</ResponseField>
+
+### Usage
+
+```javascript
+const app = Dative.defineApp({
+  el: '#app',
+  data() {
+    return {
+      count: 0,
+      message: 'Hello DativeJS'
+    }
+  },
+  methods: {
+    increment() {
+      this.count++;
+    }
+  },
+  template: `
+    <div>
+      <p>{{ message }}</p>
+      <p>Count: {{ count }}</p>
+      <button dv-on:click="increment()">Increment</button>
+    </div>
+  `
+});
+```
+
+### Data Validation
+
+<Warning>
+  When using `defineApp()`, the `data` option must be a function, not an object. This ensures each instance has its own isolated data scope.
+</Warning>
+
+```javascript
+// ✅ Correct - data is a function
+Dative.defineApp({
+  data() {
+    return { count: 0 }
+  }
+});
+
+// ❌ Wrong - will trigger a warning
+Dative.defineApp({
+  data: { count: 0 }  // Error: Data should be a function
+});
+```
+
+## Dative.defineProperty()
+
+Defines a custom read-only property on all Dative instances globally.
+
+<ParamField path="name" type="string" required>
+  The name of the property to define (will be prefixed with `$`).
+  
+  <Warning>
+    Cannot use reserved property names: `el`, `ref`
+  </Warning>
+</ParamField>
+
+<ParamField path="callback" type="Function" required>
+  A getter function that returns the property value.
+  
+  The property will be read-only and accessible as `$<name>` on all instances.
+</ParamField>
+
+### Usage
+
+```javascript
+// Define a custom $env property
+Dative.defineProperty('env', () => {
+  return process.env.NODE_ENV || 'development';
+});
+
+// Now accessible in all instances
+const app = new Dative({
+  el: '#app',
+  oncreated() {
+    console.log(this.$env); // 'development'
+  }
+});
+```
+
+### Advanced Example
+
+```javascript
+// Define a $device property
+Dative.defineProperty('device', () => {
+  const ua = navigator.userAgent;
+  if (/mobile/i.test(ua)) return 'mobile';
+  if (/tablet/i.test(ua)) return 'tablet';
+  return 'desktop';
+});
+
+// Use in your app
+const app = Dative.defineApp({
+  el: '#app',
+  template: `
+    <div>
+      <p>Device type: {{ $device }}</p>
+    </div>
+  `
+});
+```
+
+<Warning>
+  Properties defined with `defineProperty()` are read-only. Attempting to set them will trigger a warning.
+</Warning>
+
+## Dative.utlis.warn()
+
+Logs warning messages to the console with the `[dative Warn]:` prefix.
+
+<ParamField path="msg" type="any" required>
+  The primary warning message to display.
+</ParamField>
+
+<ParamField path="...others" type="any[]">
+  Additional arguments to log alongside the warning message.
+</ParamField>
+
+### Behavior
+
+Warnings are only displayed when `Dative.config.slient` is set to `false` (the default in browser environments).
+
+### Usage
+
+```javascript
+// Log a simple warning
+Dative.utlis.warn('This is a warning message');
+// Console output: [dative Warn]: This is a warning message
+
+// Log with additional context
+Dative.utlis.warn('Invalid value:', { value: null }, 'expected string');
+// Console output: [dative Warn]: Invalid value: { value: null } expected string
+```
+
+### Conditional Warnings
+
+```javascript
+function validateInput(value) {
+  if (typeof value !== 'string') {
+    Dative.utlis.warn(
+      'Expected string but got',
+      typeof value,
+      'for input value'
+    );
+    return false;
+  }
+  return true;
+}
+```
+
+### Suppressing Warnings
+
+Warnings can be suppressed globally by setting the config:
+
+```javascript
+// Disable all warnings
+Dative.config.slient = true;
+
+// This warning will not be displayed
+Dative.utlis.warn('This will not appear');
+```
+
+## Dative.version
+
+A read-only string property containing the current version of DativeJS.
+
+<ResponseField name="Dative.version" type="string">
+  The semantic version number of the DativeJS framework.
+</ResponseField>
+
+### Usage
+
+```javascript
+console.log('DativeJS Version:', Dative.version);
+// Output: DativeJS Version: 2.0.0 (example)
+```
+
+### Version Checking
+
+```javascript
+// Check if running a specific version
+function checkVersion(minVersion) {
+  const current = Dative.version.split('.').map(Number);
+  const minimum = minVersion.split('.').map(Number);
+  
+  for (let i = 0; i < 3; i++) {
+    if (current[i] > minimum[i]) return true;
+    if (current[i] < minimum[i]) return false;
+  }
+  return true;
+}
+
+if (!checkVersion('2.0.0')) {
+  Dative.utlis.warn('This feature requires DativeJS 2.0.0 or higher');
+}
+```
+
+### Display in UI
+
+```javascript
+const app = Dative.defineApp({
+  el: '#app',
+  data() {
+    return {
+      frameworkVersion: Dative.version
+    }
+  },
+  template: `
+    <footer>
+      <p>Powered by DativeJS v{{ frameworkVersion }}</p>
+    </footer>
+  `
+});
+```
+
+## TypeScript Types
+
+### utlistype Interface
+
+```typescript
+type utlistype = {
+  warn: (msg: any, ...other: any[]) => void;
+};
+```
+
+### Usage in TypeScript
+
+```typescript
+import Dative, { Config } from 'dativejs';
+
+// Access utilities with type safety
+const utils: typeof Dative.utlis = Dative.utlis;
+utils.warn('Type-safe warning');
+
+// Define custom properties with types
+Dative.defineProperty('apiUrl', (): string => {
+  return process.env.API_URL || 'http://localhost:3000';
+});
+
+// Create apps with type checking
+const app: Dative = Dative.defineApp({
+  el: '#app',
+  data() {
+    return {
+      message: 'Hello TypeScript'
+    }
+  }
+});
+```
+
+## Related
+
+- [Dative.config](/api/config) - Global configuration object
+- [Dative Class](/api/dative-class) - Main Dative class and options
+- [DativeComponent](/api/dative-component) - Creating and managing components

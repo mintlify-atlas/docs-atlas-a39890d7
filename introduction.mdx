@@ -1,0 +1,154 @@
+---
+title: Introduction
+description: DativeJS is a modern reactive UI JavaScript framework that makes building dynamic web applications simple and intuitive
+---
+
+# DativeJS
+
+## What is DativeJS?
+
+DativeJS is a modern reactive UI JavaScript framework that brings powerful reactivity, component-based architecture, and elegant templating to your web applications. Built with developer experience in mind, DativeJS provides an intuitive API that makes building dynamic interfaces both simple and enjoyable.
+
+With DativeJS, you write declarative templates with reactive data binding, and the framework automatically updates your UI when data changes. No need for virtual DOM diffing or manual DOM manipulation—DativeJS handles it all efficiently.
+
+## Key features
+
+<CardGroup cols={2}>
+  <Card
+    title="Reactive data binding"
+    icon="bolt"
+    href="/core/reactivity"
+  >
+    Automatic UI updates when your data changes, powered by a fine-grained reactivity system
+  </Card>
+  <Card
+    title="Component-based architecture"
+    icon="cubes"
+    href="/core/components"
+  >
+    Build reusable, composable components with props, lifecycle hooks, and scoped styling
+  </Card>
+  <Card
+    title="Custom directive support"
+    icon="wand-magic-sparkles"
+    href="/guides/directives"
+  >
+    Extend the framework with your own directives for custom DOM manipulation
+  </Card>
+  <Card
+    title="Template syntax with control flow"
+    icon="code"
+    href="/core/templating"
+  >
+    Expressive templates with conditionals, loops, and inline JavaScript expressions
+  </Card>
+  <Card
+    title="Lifecycle hooks"
+    icon="circle-nodes"
+    href="/core/lifecycle"
+  >
+    Hook into component creation, mounting, and destruction for complete control
+  </Card>
+  <Card
+    title="Scoped CSS styling"
+    icon="palette"
+    href="/guides/styling"
+  >
+    Component-scoped CSS that doesn't leak to other parts of your application
+  </Card>
+  <Card
+    title="Animation system"
+    icon="sparkles"
+    href="/guides/animations"
+  >
+    Built-in animation support with transitions and custom animation directives
+  </Card>
+  <Card
+    title="Plugin architecture"
+    icon="puzzle-piece"
+    href="/advanced/plugins"
+  >
+    Extend DativeJS functionality with a flexible plugin system
+  </Card>
+</CardGroup>
+
+## Quick example
+
+Here's a simple counter application to give you a taste of DativeJS:
+
+```javascript
+import Dative from 'dativejs';
+
+const app = new Dative({
+  el: '#app',
+  data() {
+    return {
+      count: 0
+    }
+  },
+  methods: {
+    increment() {
+      this.count++;
+    }
+  },
+  template: `
+    <div>
+      <h1>Counter: {{ count }}</h1>
+      <button dv-on:click="increment()">Increment</button>
+    </div>
+  `
+});
+```
+
+That's all you need! DativeJS will automatically track the `count` data and update the UI when it changes.
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card
+    title="Installation"
+    icon="download"
+    href="/installation"
+  >
+    Get DativeJS installed in your project with npm, yarn, or via CDN
+  </Card>
+  <Card
+    title="Quickstart"
+    icon="rocket"
+    href="/quickstart"
+  >
+    Build your first DativeJS application in minutes
+  </Card>
+  <Card
+    title="Core concepts"
+    icon="book"
+    href="/core/reactivity"
+  >
+    Understand the fundamental concepts behind DativeJS
+  </Card>
+  <Card
+    title="API reference"
+    icon="file-code"
+    href="/api/dative-class"
+  >
+    Explore the complete API documentation
+  </Card>
+</CardGroup>
+
+## Why DativeJS?
+
+### Simplicity first
+
+DativeJS is designed to be easy to learn and use. If you know JavaScript, HTML, and CSS, you're ready to build with DativeJS. No complex build tools required—though it works great with modern bundlers too.
+
+### Lightweight and performant
+
+At its core, DativeJS is lightweight and uses efficient DOM diffing algorithms to minimize DOM operations. Your applications stay fast even as they grow in complexity.
+
+### Flexible and extensible
+
+Whether you're building a simple widget or a complex single-page application, DativeJS scales with your needs. The plugin system and custom directives let you extend the framework exactly how you need.
+
+<Note>
+  DativeJS is currently in version 2.0.0-alpha. While it's production-ready for many use cases, the API may still evolve based on community feedback.
+</Note>

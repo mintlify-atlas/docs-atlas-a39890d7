@@ -1,0 +1,119 @@
+---
+title: 'Dative.config'
+description: 'Global configuration object for DativeJS applications'
+---
+
+## Overview
+
+The `Dative.config` object provides global configuration settings for all DativeJS applications. You can modify individual properties to customize framework behavior.
+
+<Warning>
+  Do not replace the entire `Dative.config` object. Set individual fields instead to avoid breaking the framework's internal configuration management.
+</Warning>
+
+## Configuration Properties
+
+<ParamField path="slient" type="boolean" default={false}>
+  Controls whether warnings and tips are logged to the console.
+  
+  - When `false` (default in browser): Framework warnings and tips are displayed in the console
+  - When `true` (default in non-client environments): All console warnings and tips are suppressed
+  
+  <Tip>
+    Set to `true` in production to suppress development warnings.
+  </Tip>
+</ParamField>
+
+<ParamField path="mode" type="string" default="development">
+  Specifies the current environment mode for the application.
+  
+  Typically set to either:
+  - `"development"` - Development mode with full warnings
+  - `"production"` - Production mode (combine with `slient: true`)
+</ParamField>
+
+<ParamField path="noop" type="Function" default="function () {}">
+  A no-operation function used as a default placeholder throughout the framework.
+  
+  <Warning>
+    This is an internal property. Do not modify or use this property in your application code.
+  </Warning>
+</ParamField>
+
+<ParamField path="CurrentInstance" type="any" default={null}>
+  Holds a reference to the currently active Dative instance.
+  
+  This property is automatically managed by the framework and updated during instance creation.
+  
+  <Warning>
+    This is an internal property used by the framework. Modifying it directly may cause unexpected behavior.
+  </Warning>
+</ParamField>
+
+## Usage
+
+### Accessing Configuration
+
+You can access the configuration object through the `Dative.config` property:
+
+```javascript
+console.log(Dative.config.mode); // "development"
+console.log(Dative.config.slient); // false
+```
+
+### Modifying Configuration
+
+Modify individual configuration properties before creating your application instances:
+
+```javascript
+// Suppress warnings in production
+Dative.config.slient = true;
+
+// Set production mode
+Dative.config.mode = 'production';
+
+// Now create your app
+const app = new Dative({
+  el: '#app',
+  data() {
+    return {
+      message: 'Hello World'
+    }
+  },
+  template: '<div>{{ message }}</div>'
+});
+```
+
+### Custom Configuration Example
+
+```javascript
+// Development configuration
+if (process.env.NODE_ENV === 'development') {
+  Dative.config.slient = false;
+  Dative.config.mode = 'development';
+}
+
+// Production configuration
+if (process.env.NODE_ENV === 'production') {
+  Dative.config.slient = true;
+  Dative.config.mode = 'production';
+}
+```
+
+## TypeScript Interface
+
+The configuration object follows this TypeScript interface:
+
+```typescript
+interface Config {
+  slient: boolean;
+  mode: string;  // default: 'development'
+  noop: () => void;
+  CurrentInstance: any;
+}
+```
+
+## Related
+
+- [Utilities](/api/utilities) - Utility functions including `Dative.utlis.warn()`
+- [defineApp()](/api/utilities#defineapp) - Function for creating Dative applications

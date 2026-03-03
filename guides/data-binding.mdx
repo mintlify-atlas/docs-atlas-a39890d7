@@ -1,0 +1,390 @@
+---
+title: 'Data Binding'
+description: 'Learn how to bind data to your UI elements using DativeJS reactive data binding directives'
+icon: 'link'
+---
+
+DativeJS provides powerful two-way data binding capabilities through the `dv-bind:` and `bind:` directives. These directives allow you to synchronize data between your component state and DOM elements.
+
+## Overview
+
+Data binding in DativeJS is reactive and efficient. When you bind a property to an element, any changes to the data automatically update the DOM, and vice versa for two-way bindings.
+
+<Note>
+Both `dv-bind:` and `bind:` work identically - use whichever prefix you prefer. The `bind:` shorthand is more concise.
+</Note>
+
+## Basic Property Binding
+
+Bind data to any element property using the `bind:` directive followed by the property name.
+
+<CodeGroup>
+```html Template
+<div id="app">
+  <input bind:value="message" />
+  <p bind:textContent="message"></p>
+</div>
+```
+
+```javascript Component
+const app = new Dative({
+  el: '#app',
+  data() {
+    return {
+      message: 'Hello DativeJS'
+    }
+  },
+  template: `
+    <div>
+      <input bind:value="message" />
+      <p bind:textContent="message"></p>
+    </div>
+  `
+});
+```
+</CodeGroup>
+
+The `bind:value` directive binds the input's value to the `message` property, while `bind:textContent` displays it in the paragraph.
+
+## Binding Attributes
+
+You can bind to any HTML attribute or DOM property. DativeJS automatically converts kebab-case attribute names to camelCase properties.
+
+<Steps>
+
+<Step title="Bind to value">
+Bind input values for form controls:
+
+```html
+<input bind:value="username" />
+<textarea bind:value="description"></textarea>
+```
+</Step>
+
+<Step title="Bind to class">
+Dynamically set CSS classes:
+
+```html
+<div bind:className="activeClass"></div>
+```
+
+```javascript
+data() {
+  return {
+    activeClass: 'active highlight'
+  }
+}
+```
+</Step>
+
+<Step title="Bind to style">
+Bind inline styles directly:
+
+```html
+<div bind:style="customStyle"></div>
+```
+
+```javascript
+data() {
+  return {
+    customStyle: 'color: red; font-size: 20px;'
+  }
+}
+```
+</Step>
+
+</Steps>
+
+## Binding Custom Attributes
+
+Bind to any custom attribute or data attribute:
+
+```html
+<div bind:data-id="userId" bind:aria-label="ariaLabel"></div>
+```
+
+```javascript
+const app = new Dative({
+  el: '#app',
+  data() {
+    return {
+      userId: '12345',
+      ariaLabel: 'User profile section'
+    }
+  },
+  template: `
+    <div bind:data-id="userId" bind:aria-label="ariaLabel">
+      User Content
+    </div>
+  `
+});
+```
+
+## Element References with bind:this
+
+The special `bind:this` directive creates a reference to the DOM element itself. This is similar to `dv-ref` but uses the binding syntax.
+
+```html
+<input bind:this="inputElement" />
+<button on:click="focusInput()">Focus Input</button>
+```
+
+```javascript
+const app = new Dative({
+  el: '#app',
+  data() {
+    return {}
+  },
+  methods: {
+    focusInput() {
+      this.$ref.inputElement.focus();
+    }
+  },
+  template: `
+    <div>
+      <input bind:this="inputElement" />
+      <button on:click="focusInput()">Focus Input</button>
+    </div>
+  `
+});
+```
+
+<Tip>
+When using `bind:this`, the element is stored in the `$ref` object, making it accessible throughout your component methods.
+</Tip>
+
+## Two-Way Data Binding
+
+DativeJS automatically handles two-way binding for form inputs. When a user types in an input bound with `bind:value`, the component's data updates immediately.
+
+<CodeGroup>
+```html Interactive Form
+<template>
+  <div>
+    <h3>User Registration</h3>
+    <input bind:value="username" placeholder="Username" />
+    <input bind:value="email" placeholder="Email" />
+    <textarea bind:value="bio" placeholder="Bio"></textarea>
+    
+    <div>
+      <h4>Preview:</h4>
+      <p>Username: {{ username }}</p>
+      <p>Email: {{ email }}</p>
+      <p>Bio: {{ bio }}</p>
+    </div>
+  </div>
+</template>
+```
+
+```javascript Component Logic
+const registrationForm = new Dative({
+  el: '#registration',
+  data() {
+    return {
+      username: '',
+      email: '',
+      bio: ''
+    }
+  },
+  template: `
+    <div>
+      <h3>User Registration</h3>
+      <input bind:value="username" placeholder="Username" />
+      <input bind:value="email" placeholder="Email" />
+      <textarea bind:value="bio" placeholder="Bio"></textarea>
+      
+      <div>
+        <h4>Preview:</h4>
+        <p>Username: {{ username }}</p>
+        <p>Email: {{ email }}</p>
+        <p>Bio: {{ bio }}</p>
+      </div>
+    </div>
+  `
+});
+```
+</CodeGroup>
+
+## Binding with Expressions
+
+Bind to complex expressions and computed values:
+
+```html
+<div bind:className="isActive ? 'active' : 'inactive'" ></div>
+<img bind:src="'/images/' + imageName" bind:alt="imageAlt" />
+```
+
+```javascript
+const app = new Dative({
+  el: '#app',
+  data() {
+    return {
+      isActive: true,
+      imageName: 'logo.png',
+      imageAlt: 'Company Logo'
+    }
+  },
+  template: `
+    <div>
+      <div bind:className="isActive ? 'active' : 'inactive'">
+        Status Indicator
+      </div>
+      <img bind:src="'/images/' + imageName" bind:alt="imageAlt" />
+    </div>
+  `
+});
+```
+
+## Binding to Nested Properties
+
+Access nested object properties in your bindings:
+
+```html
+<input bind:value="user.profile.name" />
+<span bind:textContent="settings.theme.primaryColor"></span>
+```
+
+```javascript
+const app = new Dative({
+  el: '#app',
+  data() {
+    return {
+      user: {
+        profile: {
+          name: 'John Doe'
+        }
+      },
+      settings: {
+        theme: {
+          primaryColor: '#FF3E00'
+        }
+      }
+    }
+  },
+  template: `
+    <div>
+      <input bind:value="user.profile.name" />
+      <span bind:textContent="settings.theme.primaryColor"></span>
+    </div>
+  `
+});
+```
+
+## Practical Example: Todo List
+
+Here's a complete example demonstrating data binding in a real application:
+
+```javascript
+const todoApp = new Dative({
+  el: '#todo-app',
+  data() {
+    return {
+      newTodo: '',
+      todos: [],
+      filter: 'all'
+    }
+  },
+  methods: {
+    addTodo() {
+      if (this.newTodo.trim()) {
+        this.todos.push({
+          id: Date.now(),
+          text: this.newTodo,
+          completed: false
+        });
+        this.newTodo = '';
+      }
+    }
+  },
+  template: `
+    <div class="todo-app">
+      <h1>My Todos</h1>
+      
+      <div class="input-group">
+        <input 
+          bind:value="newTodo" 
+          bind:placeholder="'Add a new todo...'" 
+          on:keyup="$event.key === 'Enter' && addTodo()"
+        />
+        <button on:click="addTodo()">Add</button>
+      </div>
+      
+      <select bind:value="filter">
+        <option bind:value="'all'">All</option>
+        <option bind:value="'active'">Active</option>
+        <option bind:value="'completed'">Completed</option>
+      </select>
+      
+      <ul>
+        #each todos as todo
+          <li bind:className="todo.completed ? 'completed' : ''">
+            {{ todo.text }}
+          </li>
+        /each
+      </ul>
+    </div>
+  `
+});
+```
+
+## Best Practices
+
+<CardGroup cols={2}>
+<Card title="Use Meaningful Names" icon="tag">
+Choose descriptive property names that clearly indicate what data is being bound.
+</Card>
+
+<Card title="Avoid Complex Logic" icon="code">
+Keep binding expressions simple. Use computed properties for complex transformations.
+</Card>
+
+<Card title="Two-Way Binding" icon="arrows-rotate">
+Use `bind:value` for form inputs to enable automatic two-way synchronization.
+</Card>
+
+<Card title="Performance" icon="gauge-high">
+DativeJS efficiently updates only changed properties, so you can bind freely without performance concerns.
+</Card>
+</CardGroup>
+
+## Common Patterns
+
+### Checkbox Binding
+
+```html
+<input type="checkbox" bind:checked="isAccepted" />
+<label>I accept the terms</label>
+```
+
+### Radio Button Binding
+
+```html
+<input type="radio" bind:checked="plan === 'basic'" on:click="plan = 'basic'" />
+<input type="radio" bind:checked="plan === 'pro'" on:click="plan = 'pro'" />
+```
+
+### Select Dropdown
+
+```html
+<select bind:value="selectedCountry">
+  #each countries as country
+    <option bind:value="country.code">{{ country.name }}</option>
+  /each
+</select>
+```
+
+<Warning>
+Remember that the `bind:` directive creates references to your data properties. Modifying bound elements directly updates your component state.
+</Warning>
+
+## Next Steps
+
+<CardGroup cols={2}>
+<Card title="Event Handling" icon="hand-pointer" href="/guides/event-handling">
+Learn how to handle user interactions with event directives
+</Card>
+
+<Card title="Directives" icon="wand-magic-sparkles" href="/guides/directives">
+Explore all built-in directives available in DativeJS
+</Card>
+</CardGroup>

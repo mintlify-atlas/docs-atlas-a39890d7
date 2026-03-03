@@ -1,0 +1,218 @@
+---
+title: 'dv-bind / bind:'
+description: 'Dynamically bind attributes to DOM elements'
+---
+
+The `dv-bind:` (or shorthand `bind:`) directive allows you to dynamically bind JavaScript expressions to HTML attributes. The bound values are evaluated from your component's data and updated reactively.
+
+## Syntax
+
+```html
+<element dv-bind:attribute="expression"></element>
+<element bind:attribute="expression"></element>
+```
+
+Both syntaxes are equivalent. The shorthand `bind:` syntax is more concise and commonly used.
+
+## Parameters
+
+<ParamField path="attribute" type="string" required>
+  The HTML attribute name to bind to. Common examples include `value`, `class`, `style`, `href`, `src`, `disabled`, `checked`, etc.
+  
+  The attribute name undergoes kebab-to-camel case conversion when setting the DOM property. For example, `data-user-id` becomes `dataUserId`.
+</ParamField>
+
+<ParamField path="expression" type="any" required>
+  A JavaScript expression to evaluate. The expression is evaluated in the context of your component's data and can reference any data properties, computed values, or methods.
+</ParamField>
+
+## How It Works
+
+When the directive is processed:
+
+1. The attribute name is extracted (the part after `bind:`)
+2. The expression is evaluated using the `attributeparser` function
+3. The attribute name is converted from kebab-case to camelCase using `kebabToCamel()`
+4. The result is assigned to the element's property
+5. The directive attribute is removed from the DOM
+
+## Usage Examples
+
+### Binding to Value
+
+```html
+<input bind:value="username" type="text">
+<textarea bind:value="message"></textarea>
+```
+
+```javascript
+new Dative({
+  target: '#app',
+  data() {
+    return {
+      username: 'John',
+      message: 'Hello World'
+    }
+  },
+  template: `
+    <div>
+      <input bind:value="username" type="text">
+      <p>Username: {{ username }}</p>
+    </div>
+  `
+})
+```
+
+### Binding to Class
+
+```html
+<div bind:class="isActive ? 'active' : 'inactive'">Content</div>
+<button bind:class="buttonClass">Click me</button>
+```
+
+```javascript
+data() {
+  return {
+    isActive: true,
+    buttonClass: 'btn btn-primary'
+  }
+}
+```
+
+### Binding to Style
+
+```html
+<div bind:style="containerStyle">Styled content</div>
+<p bind:style="'color: ' + textColor + '; font-size: ' + fontSize + 'px'">Text</p>
+```
+
+```javascript
+data() {
+  return {
+    containerStyle: 'background: #f0f0f0; padding: 20px;',
+    textColor: 'blue',
+    fontSize: 16
+  }
+}
+```
+
+### Binding to href and src
+
+```html
+<a bind:href="profileUrl">View Profile</a>
+<img bind:src="avatarUrl" alt="Avatar">
+```
+
+```javascript
+data() {
+  return {
+    profileUrl: '/profile/user123',
+    avatarUrl: 'https://example.com/avatar.jpg'
+  }
+}
+```
+
+### Binding Boolean Attributes
+
+```html
+<button bind:disabled="isLoading">Submit</button>
+<input bind:checked="isChecked" type="checkbox">
+```
+
+```javascript
+data() {
+  return {
+    isLoading: false,
+    isChecked: true
+  }
+}
+```
+
+### Binding Data Attributes
+
+```html
+<div bind:data-user-id="userId">User Card</div>
+<span bind:data-tooltip="tooltipText">Hover me</span>
+```
+
+```javascript
+data() {
+  return {
+    userId: 12345,
+    tooltipText: 'This is a tooltip'
+  }
+}
+```
+
+Note: `data-user-id` will be converted to `dataUserId` when setting the property.
+
+### Using Expressions
+
+```html
+<div bind:class="'user-' + userRole">User</div>
+<img bind:src="'/images/' + imageFile" alt="Image">
+<a bind:href="baseUrl + '/page/' + pageId">Link</a>
+```
+
+```javascript
+data() {
+  return {
+    userRole: 'admin',
+    imageFile: 'photo.jpg',
+    baseUrl: 'https://example.com',
+    pageId: 42
+  }
+}
+```
+
+## Special Case: bind:this
+
+The `bind:this` directive is a special case that creates a reference to the DOM element. See the [ref directive](/api/directives/ref) documentation for details.
+
+```html
+<div bind:this="container"></div>
+```
+
+This is equivalent to using `dv-ref="container"` or `ref="container"`.
+
+## Implementation Details
+
+From the source code (`index.js:1023-1046`):
+
+```javascript
+else if (
+  name.startsWith(prefix("bind:")) ||
+  name.startsWith("bind:")
+) {
+  let propName = name.slice(8);
+  if (name.startsWith("bind:")) {
+    propName = name.slice(5);
+  }
+  const dataName = el.getAttribute(name);
+  if (propName === "this") {
+    if (el.ref) {
+      warnDuplicate$(el, "bind:this", el, true);
+      return;
+    }
+    this.$ref[dataName] = el;
+    el.removeAttribute(name);
+  } else {
+    el[this.kebabToCamel(propName)] = attributeparser(
+      this,
+      dataName,
+      el
+    );
+    el.removeAttribute(name);
+  }
+}
+```
+
+The `kebabToCamel` function converts kebab-case attribute names to camelCase for proper DOM property assignment.
+
+## Notes
+
+- The directive is removed from the final rendered DOM
+- Expressions are evaluated in the component's context using the `attributeparser` function
+- Both `dv-bind:` and `bind:` syntaxes are supported
+- Attribute names are automatically converted from kebab-case to camelCase
+- Values are reactive and update when the underlying data changes

@@ -1,0 +1,421 @@
+---
+title: 'Reactivity System'
+description: 'Understanding the reactive data system in DativeJS'
+---
+
+## Overview
+
+DativeJS uses a dependency tracking reactivity system powered by the `Dep` class and `Object.defineProperty`. When data changes, the UI automatically updates to reflect those changes.
+
+## How Reactivity Works
+
+The reactivity system consists of three core components:
+
+<CardGroup cols={3}>
+  <Card title="Dep Class" icon="database">
+    Manages subscriptions and notifies subscribers when data changes
+  </Card>
+  <Card title="defineReactive" icon="link">
+    Converts object properties into reactive getters and setters
+  </Card>
+  <Card title="observe" icon="eye">
+    Walks through data objects and makes all properties reactive
+  </Card>
+</CardGroup>
+
+## The Dep Class
+
+The `Dep` (Dependency) class manages a list of subscribers and notifies them when changes occur.
+
+```javascript index.js:109-123
+class Dep {
+  constructor() {
+    this.id = uid++;
+    this.subs = {};
+  }
+  addSub(sub) {
+    // avoid repeated additions
+    if (!this.subs[sub.uid]) this.subs[sub.uid] = sub;
+  }
+  notify() {
+    for (let uid in this.subs) {
+      this.subs[uid].update();
+    }
+  }
+}
+Dep.target = null;
+```
+
+<Note>
+  Each `Dep` instance has a unique `id` and maintains a `subs` object to store subscribers. The `Dep.target` is a static property used during dependency collection.
+</Note>
+
+## Making Data Reactive
+
+### defineReactive Function
+
+The `defineReactive` function converts a single property into a reactive property:
+
+```javascript index.js:125-138
+function defineReactive(object, key) {
+  let value = object[key],
+    dep = new Dep();
+  Object.defineProperty(object, key, {
+    get() {
+      Dep.target && dep.addSub(Dep.target);
+      return value;
+    },
+    set(newValue) {
+      value = newValue;
+      dep.notify();
+    },
+  });
+  return object;
+}
+```
+
+<Tabs>
+  <Tab title="Getter">
+    When a property is accessed:
+    1. If `Dep.target` exists, add it as a subscriber
+    2. Return the current value
+    
+    This allows the system to track which components depend on this data.
+  </Tab>
+  <Tab title="Setter">
+    When a property is changed:
+    1. Update the internal value
+    2. Call `dep.notify()` to trigger all subscribers
+    
+    This automatically updates all components that depend on this data.
+  </Tab>
+</Tabs>
+
+### observe Function
+
+The `observe` function makes all properties of an object reactive:
+
+```javascript index.js:140-147
+function observe(data) {
+  if (_type$$(data) != "object") return;
+  var obj;
+  for (let key in data) {
+    obj = defineReactive(data, key);
+  }
+  return obj;
+}
+```
+
+<Warning>
+  The `observe` function only works with plain objects. Arrays and primitive values are not made reactive by this function.
+</Warning>
+
+## The Proxy System
+
+DativeJS uses a proxy mechanism to make data properties accessible directly on the component instance:
+
+```javascript index.js:149-163
+function proxy(sourceKey, key) {
+  let self = this;
+  Object.defineProperty(self, key, {
+    configurable: true,
+    enumerable: true,
+    get: function reactivegetter() {
+      return self[sourceKey][key];
+    },
+    set: function reactivesetter(newVal) {
+      self[sourceKey][key] = newVal;
+      self.render();
+      return true;
+    },
+  });
+}
+```
+
+This allows you to write `this.message` instead of `this.data.message`:
+
+<CodeGroup>
+```javascript With Proxy
+const app = new Dative({
+  el: '#app',
+  data() {
+    return { message: 'Hello' }
+  },
+  methods: {
+    updateMessage() {
+      this.message = 'World';  // Proxied access
+    }
+  }
+});
+```
+
+```javascript Without Proxy
+// Without proxy, you would need:
+this.data.message = 'World';
+```
+</CodeGroup>
+
+## Creating Reactive Applications
+
+### Basic Example
+
+```javascript
+const app = new Dative({
+  el: '#app',
+  data() {
+    return {
+      count: 0,
+      message: 'Click the button'
+    }
+  },
+  template: `
+    <div>
+      <h1>{{ message }}</h1>
+      <p>Count: {{ count }}</p>
+      <button on:click="increment()">Increment</button>
+    </div>
+  `,
+  methods: {
+    increment() {
+      this.count++;  // Automatically triggers re-render
+    }
+  }
+});
+```
+
+### Using set() Method
+
+The `set()` method allows you to update data and trigger a render:
+
+```javascript index.js:704-717
+Dative.prototype.set = function set(obj, data) {
+  var $this = this;
+  if (typeof obj !== "object") {
+    $this[obj] = data;
+    $this.render();
+  } else {
+    for (var key in obj) {
+      if (obj.hasOwnProperty(key)) {
+        $this[key] = obj[key];
+        $this.render();
+      }
+    }
+  }
+};
+```
+
+<CodeGroup>
+```javascript Single Property
+// Update a single property
+this.set('count', 10);
+```
+
+```javascript Multiple Properties
+// Update multiple properties
+this.set({
+  count: 10,
+  message: 'Updated!'
+});
+```
+</CodeGroup>
+
+### Using get() Method
+
+The `get()` method retrieves data, including nested properties:
+
+```javascript index.js:718-720
+Dative.prototype.get = function get(value = "") {
+  return value === "" ? this : valps(value, this);
+};
+```
+
+```javascript
+// Get entire instance
+const instance = this.get();
+
+// Get nested property
+const userName = this.get('user.name');
+```
+
+## Computed Properties
+
+Computed properties are reactive values derived from other data:
+
+```javascript index.js:1311-1340
+const computed = $this.options.computed || Object.create(null);
+if (!computed) return false;
+for (let key in computed) {
+  const value = computed[key];
+  if (key in $this.data || key in $this.methods) {
+    warnDuplicate($this, key, key in $this.data ? "data" : "methods");
+    return;
+  }
+  if (typeof value === "function") {
+    Object.defineProperty($this, key, {
+      get: value,
+      enumerable: true,
+      configurable: true,
+    });
+  } else if (typeof value === "object") {
+    Object.defineProperty($this, key, {
+      get: value.get || config.noop,
+      set: value.set || config.noop,
+      configurable: true,
+    });
+  }
+}
+```
+
+<Tabs>
+  <Tab title="Function Syntax">
+    ```javascript
+    const app = new Dative({
+      el: '#app',
+      data() {
+        return {
+          firstName: 'John',
+          lastName: 'Doe'
+        }
+      },
+      computed: {
+        fullName() {
+          return `${this.firstName} ${this.lastName}`;
+        }
+      },
+      template: `<div>{{ fullName }}</div>`
+    });
+    ```
+  </Tab>
+  <Tab title="Object Syntax">
+    ```javascript
+    const app = new Dative({
+      el: '#app',
+      data() {
+        return {
+          firstName: 'John',
+          lastName: 'Doe'
+        }
+      },
+      computed: {
+        fullName: {
+          get() {
+            return `${this.firstName} ${this.lastName}`;
+          },
+          set(value) {
+            const parts = value.split(' ');
+            this.firstName = parts[0];
+            this.lastName = parts[1];
+          }
+        }
+      },
+      template: `<div>{{ fullName }}</div>`
+    });
+    ```
+  </Tab>
+</Tabs>
+
+<Note>
+  Computed property names cannot conflict with data or method names. DativeJS will warn you if there's a naming conflict.
+</Note>
+
+## Data Initialization
+
+When a Dative instance is created, the data initialization process:
+
+1. Calls the `data()` function to get initial data
+2. Validates that data is a plain object
+3. Sanitizes string values if `sanitize: true`
+4. Creates proxies for each property
+5. Makes all properties reactive with `observe()`
+
+```javascript index.js:169-190
+function initData(options, dative) {
+  let data = options.data;
+  data = dative.data =
+    typeof data === "function" ? data.apply(dative, [dative]) : data || {};
+  if (!isPlainObject(data)) {
+    data = {};
+    warn(
+      "options data should return an object." +
+        "https://dativejs.js.org/api#why-data-should-return-object/"
+    );
+  }
+
+  const keys = Object.keys(data);
+  for (let i = 0; i < keys.length; i++) {
+    var val = data[keys[i]];
+    if (typeof val === "string" && dative.sanitize) {
+      data[keys[i]] = sanitizeStr(data[keys[i]]);
+    }
+    if (!isReserved()) dative.proxy(`data`, keys[i]);
+  }
+  observe(data);
+}
+```
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Always return objects from data()">
+    The `data` option should be a function that returns a plain object. This ensures each component instance has its own isolated data.
+    
+    ```javascript
+    // Good
+    data() {
+      return { count: 0 }
+    }
+    
+    // Bad - will cause warnings
+    data: { count: 0 }
+    ```
+  </Accordion>
+  
+  <Accordion title="Avoid reserved property names">
+    Don't use property names starting with `$` or `_` as they may conflict with internal Dative properties.
+    
+    ```javascript
+    // Bad
+    data() {
+      return {
+        $count: 0,  // Reserved prefix
+        _internal: 'value'  // Reserved prefix
+      }
+    }
+    ```
+  </Accordion>
+  
+  <Accordion title="Use computed for derived values">
+    Instead of storing derived values in data, use computed properties to calculate them on-demand.
+    
+    ```javascript
+    // Good
+    data() {
+      return { items: [1, 2, 3] }
+    },
+    computed: {
+      itemCount() {
+        return this.items.length;
+      }
+    }
+    
+    // Less efficient
+    data() {
+      return {
+        items: [1, 2, 3],
+        itemCount: 3  // Need to manually update
+      }
+    }
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Components" icon="cube" href="/core/components">
+    Learn about creating and using components
+  </Card>
+  <Card title="Templating" icon="code" href="/core/templating">
+    Explore template syntax and directives
+  </Card>
+</CardGroup>

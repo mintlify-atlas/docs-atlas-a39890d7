@@ -1,0 +1,376 @@
+---
+title: 'Dative Class'
+description: 'API reference for the main Dative class constructor and options'
+---
+
+## Constructor
+
+The `Dative` class is the core constructor for creating reactive UI instances.
+
+```javascript
+const app = new Dative(options)
+```
+
+<ParamField path="options" type="DativeOptions">
+  Configuration object for the Dative instance
+</ParamField>
+
+## DativeOptions
+
+### data
+
+<ParamField path="data" type="object | Function" default="{}">
+  The reactive data object for the instance. Should be a function that returns an object to ensure proper isolation.
+
+  ```javascript
+  new Dative({
+    data() {
+      return {
+        message: 'Hello World',
+        count: 0
+      }
+    }
+  })
+  ```
+</ParamField>
+
+### el / target
+
+<ParamField path="el" type="string | Element">
+  The element to mount the instance to. Can be a CSS selector string or a DOM Element.
+
+  ```javascript
+  new Dative({
+    el: '#app',
+    // or
+    target: document.querySelector('#app')
+  })
+  ```
+</ParamField>
+
+<ParamField path="target" type="string | Element">
+  Alias for `el`. Both options work identically.
+</ParamField>
+
+### template
+
+<ParamField path="template" type="string | Function">
+  The template string or function that returns HTML. Can also reference a `<script type="text/dative">` element by ID.
+
+  ```javascript
+  new Dative({
+    template: '<div>{{ message }}</div>',
+    // or
+    template() {
+      return '<div>{{ message }}</div>'
+    },
+    // or reference template by ID
+    template: '#my-template'
+  })
+  ```
+</ParamField>
+
+### methods
+
+<ParamField path="methods" type="object" default="{}">
+  An object containing methods for the instance. Methods are automatically bound to the instance context.
+
+  ```javascript
+  new Dative({
+    data() {
+      return { count: 0 }
+    },
+    methods: {
+      increment() {
+        this.count++
+      },
+      reset() {
+        this.count = 0
+      }
+    }
+  })
+  ```
+
+  <Warning>
+    Avoid using JavaScript built-in names like `Object`, `Array`, `function`, `class`, etc. as method names.
+  </Warning>
+</ParamField>
+
+### computed
+
+<ParamField path="computed" type="object" default="{}">
+  Computed properties that are cached and only re-evaluate when their dependencies change.
+
+  ```javascript
+  new Dative({
+    data() {
+      return {
+        firstName: 'John',
+        lastName: 'Doe'
+      }
+    },
+    computed: {
+      // Getter only
+      fullName() {
+        return `${this.firstName} ${this.lastName}`
+      },
+      // Getter and setter
+      reversedName: {
+        get() {
+          return this.firstName.split('').reverse().join('')
+        },
+        set(value) {
+          this.firstName = value.split('').reverse().join('')
+        }
+      }
+    }
+  })
+  ```
+</ParamField>
+
+### directives
+
+<ParamField path="directives" type="object" default="{}">
+  Custom directives for the instance. Directives are special attributes prefixed with `dv-`.
+
+  ```javascript
+  new Dative({
+    directives: {
+      focus(el, { bind }) {
+        el.focus()
+      },
+      color(el, { bind }) {
+        el.style.color = bind.value
+      }
+    },
+    template: '<input dv-focus dv-color="red">'
+  })
+  ```
+</ParamField>
+
+### animate
+
+<ParamField path="animate" type="DativeAnimateOptions" default="{}">
+  Custom animation definitions using the Web Animations API.
+
+  ```javascript
+  new Dative({
+    animate: {
+      slideIn({ animate, duration, delay, setStyle }) {
+        animate([
+          { transform: 'translateX(-100%)' },
+          { transform: 'translateX(0)' }
+        ], { duration, delay })
+      }
+    },
+    template: '<div animate:slideIn="300,0">Content</div>'
+  })
+  ```
+
+  **Built-in animations:**
+  - `fadein` - Fade in animation
+  - `bounce` - Bounce animation
+</ParamField>
+
+### sanitize
+
+<ParamField path="sanitize" type="boolean" default="false">
+  Enable automatic sanitization of string data to prevent XSS attacks. When enabled, removes `javascript:` protocol and escapes special characters.
+
+  ```javascript
+  new Dative({
+    sanitize: true,
+    data() {
+      return {
+        userInput: '<script>alert("XSS")</script>'
+      }
+    }
+  })
+  ```
+</ParamField>
+
+### use
+
+<ParamField path="use" type="Array<Function | object>" default="[]">
+  Array of plugins to install on the instance.
+
+  ```javascript
+  new Dative({
+    use: [myPlugin, anotherPlugin]
+  })
+  ```
+
+  Plugins can be functions or objects with an `install` method:
+
+  ```javascript
+  const myPlugin = {
+    install({ instance, proto, Dative }) {
+      // Add instance methods, properties, etc.
+    }
+  }
+  ```
+</ParamField>
+
+### attach
+
+<ParamField path="attach" type="Array<DativeComponent> | DativeComponent">
+  Components to attach to this instance. Attached components will re-render when this instance renders.
+
+  ```javascript
+  const ChildComponent = Dative.extend({ /* ... */ })
+  const child = new ChildComponent({ /* ... */ })
+
+  new Dative({
+    attach: [child]
+  })
+  ```
+</ParamField>
+
+## Static Methods
+
+### Dative.extend()
+
+<ParamField path="options" type="DativeComponentOptions">
+  Creates a reusable component class. See [DativeComponent](/api/dative-component) for details.
+
+  ```javascript
+  const MyComponent = Dative.extend({
+    template: '<div>{{ message }}</div>',
+    data() {
+      return { message: 'Hello' }
+    }
+  })
+  ```
+</ParamField>
+
+<ResponseField name="return" type="DativeComponent">
+  A constructor function that can be instantiated with `new`
+</ResponseField>
+
+### Dative.defineApp()
+
+<ParamField path="options" type="DativeOptions">
+  Helper function to create a Dative instance. Validates that `data` is a function.
+
+  ```javascript
+  const app = Dative.defineApp({
+    el: '#app',
+    data() {
+      return { message: 'Hello' }
+    }
+  })
+  ```
+</ParamField>
+
+<ResponseField name="return" type="Dative">
+  A new Dative instance
+</ResponseField>
+
+### Dative.defineProperty()
+
+<ParamField path="name" type="string">
+  The property name (will be prefixed with `$`)
+</ParamField>
+
+<ParamField path="callback" type="Function">
+  Getter function for the property
+
+  ```javascript
+  Dative.defineProperty('currentRoute', () => {
+    return window.location.pathname
+  })
+
+  // Usage in instances:
+  console.log(app.$currentRoute)
+  ```
+</ParamField>
+
+## Static Properties
+
+### Dative.version
+
+<ResponseField name="version" type="string">
+  The current version of DativeJS (e.g., "V2.0.0-alpha")
+</ResponseField>
+
+### Dative.config
+
+<ResponseField name="config" type="Config">
+  Global configuration object
+</ResponseField>
+
+<ParamField path="config.slient" type="boolean" default="false">
+  Suppress warnings and debug messages
+
+  ```javascript
+  Dative.config.slient = true
+  ```
+</ParamField>
+
+<ParamField path="config.mode" type="string" default="'development'">
+  Application mode
+</ParamField>
+
+<ParamField path="config.CurrentInstance" type="Dative | null">
+  Reference to the currently executing instance (read-only)
+</ParamField>
+
+### Dative.utlis
+
+<ResponseField name="utlis" type="object">
+  Utility functions
+</ResponseField>
+
+<ParamField path="utlis.warn" type="Function">
+  Warning function used internally
+
+  ```javascript
+  Dative.utlis.warn('Custom warning message')
+  ```
+</ParamField>
+
+## Usage Example
+
+```javascript
+import Dative from 'dativejs'
+
+const app = new Dative({
+  el: '#app',
+  
+  data() {
+    return {
+      count: 0,
+      message: 'Hello DativeJS'
+    }
+  },
+  
+  computed: {
+    doubleCount() {
+      return this.count * 2
+    }
+  },
+  
+  methods: {
+    increment() {
+      this.count++
+    }
+  },
+  
+  template: `
+    <div>
+      <h1>{{ message }}</h1>
+      <p>Count: {{ count }}</p>
+      <p>Double: {{ doubleCount }}</p>
+      <button on:click="increment()">Increment</button>
+    </div>
+  `,
+  
+  oncreated() {
+    console.log('Instance created!')
+  },
+  
+  onmounted() {
+    console.log('Instance mounted!')
+  }
+})
+```

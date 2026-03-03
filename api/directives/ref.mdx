@@ -1,0 +1,293 @@
+---
+title: 'dv-ref / ref'
+description: 'Create references to DOM elements'
+---
+
+The `dv-ref` (or shorthand `ref`) directive creates a reference to a DOM element, making it accessible via the component's `$ref` object. This allows you to directly access and manipulate DOM elements from your component code.
+
+## Syntax
+
+```html
+<element dv-ref="referenceName"></element>
+<element ref="referenceName"></element>
+<element bind:this="referenceName"></element>
+```
+
+All three syntaxes are equivalent and create a reference with the specified name.
+
+## Parameters
+
+<ParamField path="referenceName" type="string" required>
+  The name to use for the reference. This name will be used as a key in the component's `$ref` object to access the DOM element.
+  
+  The name should be a valid JavaScript identifier (letters, numbers, underscores, and dollar signs).
+</ParamField>
+
+## Accessing References
+
+References are stored in the component's `$ref` object and can be accessed from any method or lifecycle hook:
+
+```javascript
+this.$ref.referenceName // The DOM element
+```
+
+## Usage Examples
+
+### Basic Reference
+
+```html
+<div>
+  <input ref="emailInput" type="email">
+  <button on:click="focusEmail">Focus Email</button>
+</div>
+```
+
+```javascript
+new Dative({
+  target: '#app',
+  data() {
+    return {
+      email: ''
+    }
+  },
+  methods: {
+    focusEmail() {
+      this.$ref.emailInput.focus();
+    }
+  },
+  template: `...`
+})
+```
+
+### Multiple References
+
+```html
+<div>
+  <canvas ref="myCanvas" width="400" height="300"></canvas>
+  <video ref="videoPlayer" src="video.mp4"></video>
+  <div ref="container"></div>
+</div>
+```
+
+```javascript
+methods: {
+  setupCanvas() {
+    const ctx = this.$ref.myCanvas.getContext('2d');
+    ctx.fillStyle = 'blue';
+    ctx.fillRect(0, 0, 100, 100);
+  },
+  playVideo() {
+    this.$ref.videoPlayer.play();
+  },
+  addContent() {
+    this.$ref.container.innerHTML = '<p>New content</p>';
+  }
+}
+```
+
+### Using bind:this Syntax
+
+```html
+<div>
+  <input bind:this="searchInput" type="text">
+  <button on:click="clearSearch">Clear</button>
+</div>
+```
+
+```javascript
+methods: {
+  clearSearch() {
+    this.$ref.searchInput.value = '';
+    this.$ref.searchInput.focus();
+  }
+}
+```
+
+### Accessing Element Properties
+
+```html
+<div>
+  <textarea ref="editor" rows="10"></textarea>
+  <button on:click="getStats">Get Stats</button>
+  <p>Characters: {{ charCount }}</p>
+</div>
+```
+
+```javascript
+data() {
+  return {
+    charCount: 0
+  }
+},
+methods: {
+  getStats() {
+    const text = this.$ref.editor.value;
+    this.charCount = text.length;
+  }
+}
+```
+
+### Manipulating Styles
+
+```html
+<div>
+  <div ref="box" style="width: 100px; height: 100px; background: red;"></div>
+  <button on:click="changeColor">Change Color</button>
+</div>
+```
+
+```javascript
+methods: {
+  changeColor() {
+    this.$ref.box.style.background = 'blue';
+    this.$ref.box.style.width = '200px';
+  }
+}
+```
+
+### Working with Third-Party Libraries
+
+```html
+<div>
+  <div ref="chart"></div>
+</div>
+```
+
+```javascript
+onmounted() {
+  // Initialize a chart library using the ref
+  new ChartLibrary(this.$ref.chart, {
+    type: 'bar',
+    data: this.chartData
+  });
+}
+```
+
+### Form Validation
+
+```html
+<form ref="loginForm">
+  <input ref="username" type="text" name="username">
+  <input ref="password" type="password" name="password">
+  <button on:click="validateForm">Login</button>
+</form>
+```
+
+```javascript
+methods: {
+  validateForm(e) {
+    e.preventDefault();
+    const form = this.$ref.loginForm;
+    const username = this.$ref.username.value;
+    const password = this.$ref.password.value;
+    
+    if (username && password) {
+      // Submit form
+      form.submit();
+    } else {
+      alert('Please fill in all fields');
+    }
+  }
+}
+```
+
+### Measuring Element Dimensions
+
+```html
+<div>
+  <div ref="content">
+    <p>Some content here...</p>
+  </div>
+  <button on:click="measureContent">Measure</button>
+</div>
+```
+
+```javascript
+methods: {
+  measureContent() {
+    const el = this.$ref.content;
+    console.log('Width:', el.offsetWidth);
+    console.log('Height:', el.offsetHeight);
+    console.log('Position:', el.getBoundingClientRect());
+  }
+}
+```
+
+## Implementation Details
+
+From the source code (`index.js:1015-1022`):
+
+```javascript
+else if (name === prefix("ref") || name === "ref") {
+  if (el.ref) {
+    warnDuplicate$(el, "ref", el, true);
+    return;
+  }
+  const refName = el.getAttribute(name);
+  this.$ref[refName] = el;
+  el.removeAttribute(name);
+}
+```
+
+The `bind:this` directive also creates references (from `index.js:1032-1038`):
+
+```javascript
+if (propName === "this") {
+  if (el.ref) {
+    warnDuplicate$(el, "bind:this", el, true);
+    return;
+  }
+  this.$ref[dataName] = el;
+  el.removeAttribute(name);
+}
+```
+
+## The $ref Object
+
+The `$ref` object is initialized as an empty object when the component is created (`index.js:1262`):
+
+```javascript
+$this.$ref = Object.create(null);
+```
+
+All references are stored as properties on this object, with the reference name as the key and the DOM element as the value.
+
+## Best Practices
+
+1. **Use descriptive names**: Choose clear, descriptive names for your references
+   ```html
+   <input ref="emailInput"> <!-- Good -->
+   <input ref="e"> <!-- Avoid -->
+   ```
+
+2. **Access in lifecycle hooks**: References are only available after the component is mounted
+   ```javascript
+   onmounted() {
+     // Safe to access refs here
+     this.$ref.myElement.focus();
+   }
+   ```
+
+3. **Avoid overusing refs**: Use data binding when possible; refs are best for direct DOM manipulation
+   ```html
+   <!-- Prefer data binding -->
+   <input bind:value="email">
+   
+   <!-- Use refs when you need the element itself -->
+   <canvas ref="myCanvas"></canvas>
+   ```
+
+4. **Check existence**: Always verify a ref exists before using it
+   ```javascript
+   if (this.$ref.myElement) {
+     this.$ref.myElement.focus();
+   }
+   ```
+
+## Notes
+
+- The directive is removed from the final rendered DOM
+- References are stored in the component's `$ref` object
+- The `ref`, `dv-ref`, and `bind:this` directives are functionally equivalent
+- Duplicate references on the same element will trigger a warning
+- References are only available after the component has been mounted

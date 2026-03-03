@@ -1,0 +1,599 @@
+---
+title: 'Animation System'
+description: 'Create smooth, performant animations in DativeJS using the built-in animation system'
+icon: 'play'
+---
+
+DativeJS includes a powerful animation system that leverages the Web Animations API to create smooth, performant animations. You can use built-in animations or create custom ones tailored to your needs.
+
+## Overview
+
+The animation system in DativeJS provides:
+
+- Built-in animations (fadeIn, bounce)
+- Custom animation support using Web Animations API
+- Declarative syntax with the `animate:` or `@` directive
+- Control over duration, delay, and easing
+- Direct style manipulation for complex effects
+
+<Note>
+DativeJS animations use the native Web Animations API for optimal performance. Animations run on the GPU when possible, ensuring smooth 60fps animations.
+</Note>
+
+## Basic Animation Usage
+
+Add animations to elements using the `animate:` directive or the `@` shorthand:
+
+```html
+<!-- Using animate: -->
+<div animate:fadein="200,100">Fades in</div>
+
+<!-- Using @ shorthand -->
+<div @bounce="300,0">Bounces</div>
+```
+
+### Animation Parameters
+
+The animation directive accepts three comma-separated parameters:
+
+```
+@animationName="duration,delay,ease"
+```
+
+- **duration** (milliseconds) - How long the animation takes
+- **delay** (milliseconds) - How long to wait before starting
+- **ease** (optional) - Easing function (default varies by animation)
+
+<CodeGroup>
+```html Examples
+<!-- Fade in: 200ms duration, 100ms delay -->
+<div @fadein="200,100">Quick fade</div>
+
+<!-- Bounce: 300ms duration, 0ms delay -->
+<div @bounce="300,0">Immediate bounce</div>
+
+<!-- Fade in: 500ms duration, 200ms delay -->
+<div @fadein="500,200">Slow fade with delay</div>
+```
+
+```javascript Component
+const app = new Dative({
+  el: '#app',
+  data() {
+    return {
+      items: ['Item 1', 'Item 2', 'Item 3']
+    }
+  },
+  template: `
+    <div>
+      <h1 @fadein="800,0">Welcome to DativeJS</h1>
+      
+      <div class="items">
+        #each items as item
+          <div @fadein="400,200" class="item">
+            {{ item }}
+          </div>
+        /each
+      </div>
+    </div>
+  `
+});
+```
+</CodeGroup>
+
+## Built-in Animations
+
+DativeJS provides two built-in animations out of the box.
+
+### fadeIn
+
+Gradually increases opacity from 0 to 1:
+
+<Steps>
+
+<Step title="Basic fade in">
+```html
+<div @fadein="200,0">Fades in over 200ms</div>
+```
+</Step>
+
+<Step title="With delay">
+```html
+<div @fadein="400,300">Waits 300ms, then fades in over 400ms</div>
+```
+</Step>
+
+<Step title="Multiple elements">
+```html
+<div @fadein="300,0">First</div>
+<div @fadein="300,100">Second (100ms delay)</div>
+<div @fadein="300,200">Third (200ms delay)</div>
+```
+</Step>
+
+</Steps>
+
+### bounce
+
+Creates a bouncing animation with vertical translation:
+
+```html
+<!-- Bounce continuously -->
+<div @bounce="200,0">Bouncing element</div>
+
+<!-- Slower bounce -->
+<div @bounce="500,0">Slow bounce</div>
+```
+
+The bounce animation uses a cubic-bezier easing function to create a natural bouncing effect:
+
+```javascript
+// From source code (index.js:815-837)
+function bounce(el, duration, delay = 0, once = false) {
+  var animate = el.animate(
+    [
+      {
+        animationTimingFunction: 'cubic-bezier(0.8,0,1,1)',
+        transform: 'translateY(-25%)'
+      },
+      {
+        animationTimingFunction: 'cubic-bezier(0,0,0.2,1)',
+        transform: 'translateY(0)'
+      }
+    ],
+    {
+      duration,
+      delay,
+      easing: 'linear',
+      iterations: Infinity
+    }
+  );
+}
+```
+
+## Custom Animations
+
+Create custom animations using the `animate` option in your component:
+
+<CodeGroup>
+```javascript Basic Custom Animation
+const app = new Dative({
+  el: '#app',
+  data() {
+    return {}
+  },
+  animate: {
+    // Custom slide animation
+    slideIn({ animate, setStyle, duration, delay, ease }) {
+      animate([
+        { transform: 'translateX(-100%)', opacity: 0 },
+        { transform: 'translateX(0)', opacity: 1 }
+      ], {
+        duration: duration || 500,
+        delay: delay || 0,
+        easing: ease || 'ease-out'
+      });
+    }
+  },
+  template: `
+    <div>
+      <h1 @slideIn="600,0,ease-out">Slides in from left</h1>
+    </div>
+  `
+});
+```
+
+```javascript Multiple Custom Animations
+const app = new Dative({
+  el: '#app',
+  animate: {
+    // Rotate and scale
+    rotateScale({ animate, duration, delay, ease }) {
+      animate([
+        { transform: 'rotate(0deg) scale(0.5)', opacity: 0 },
+        { transform: 'rotate(360deg) scale(1)', opacity: 1 }
+      ], {
+        duration: duration || 800,
+        delay: delay || 0,
+        easing: ease || 'cubic-bezier(0.4, 0.0, 0.2, 1)'
+      });
+    },
+    
+    // Slide up
+    slideUp({ animate, duration, delay }) {
+      animate([
+        { transform: 'translateY(100%)', opacity: 0 },
+        { transform: 'translateY(0)', opacity: 1 }
+      ], {
+        duration: duration || 400,
+        delay: delay || 0,
+        easing: 'ease-out'
+      });
+    },
+    
+    // Pulse
+    pulse({ animate, duration }) {
+      animate([
+        { transform: 'scale(1)' },
+        { transform: 'scale(1.05)' },
+        { transform: 'scale(1)' }
+      ], {
+        duration: duration || 1000,
+        iterations: Infinity,
+        easing: 'ease-in-out'
+      });
+    }
+  },
+  template: `
+    <div>
+      <div @rotateScale="800,0">Rotates and scales</div>
+      <div @slideUp="400,200">Slides up</div>
+      <div @pulse="1000">Pulses continuously</div>
+    </div>
+  `
+});
+```
+</CodeGroup>
+
+## Animation Function Parameters
+
+Custom animation functions receive an object with these properties:
+
+### animate
+
+The element's `animate()` method from the Web Animations API:
+
+```javascript
+animate: {
+  myAnimation({ animate, duration, delay, ease }) {
+    // Returns an Animation object
+    const animation = animate([
+      { /* start keyframe */ },
+      { /* end keyframe */ }
+    ], {
+      duration,
+      delay,
+      easing: ease || 'ease',
+      iterations: 1, // or Infinity for continuous
+      fill: 'forwards' // or 'backwards', 'both', 'none'
+    });
+    
+    // You can control the animation
+    animation.onfinish = () => {
+      console.log('Animation finished!');
+    };
+  }
+}
+```
+
+### setStyle
+
+Function to set CSS styles directly on the element:
+
+```javascript
+animate: {
+  customStyle({ setStyle, duration }) {
+    // Set multiple styles at once
+    setStyle({
+      opacity: '1',
+      transform: 'translateX(0)',
+      transition: `all ${duration}ms ease-out`,
+      backgroundColor: 'blue'
+    });
+  }
+}
+```
+
+### duration, delay, ease
+
+Values passed from the directive:
+
+```html
+<!-- This element: @myAnim="500,100,ease-in-out" -->
+<div @myAnim="500,100,ease-in-out">Animated</div>
+```
+
+```javascript
+animate: {
+  myAnim({ duration, delay, ease }) {
+    console.log(duration); // 500
+    console.log(delay);    // 100
+    console.log(ease);     // 'ease-in-out'
+  }
+}
+```
+
+## Advanced Animation Examples
+
+### Staggered List Animation
+
+Create a staggered animation effect for list items:
+
+```javascript
+const listApp = new Dative({
+  el: '#list',
+  data() {
+    return {
+      items: [
+        'First item',
+        'Second item',
+        'Third item',
+        'Fourth item',
+        'Fifth item'
+      ]
+    }
+  },
+  animate: {
+    stagger({ animate, duration, delay }) {
+      animate([
+        { opacity: 0, transform: 'translateX(-50px)' },
+        { opacity: 1, transform: 'translateX(0)' }
+      ], {
+        duration: duration || 400,
+        delay: delay || 0,
+        easing: 'cubic-bezier(0.4, 0.0, 0.2, 1)'
+      });
+    }
+  },
+  template: `
+    <div>
+      <h2 @fadein="600,0">My List</h2>
+      <ul>
+        #each items as item
+          <li @stagger="400,{{ $index * 100 }}">{{ item }}</li>
+        /each
+      </ul>
+    </div>
+  `
+});
+```
+
+### Card Flip Animation
+
+```javascript
+const cardApp = new Dative({
+  el: '#card',
+  data() {
+    return {
+      isFlipped: false
+    }
+  },
+  animate: {
+    flipIn({ animate, duration, delay }) {
+      animate([
+        { transform: 'perspective(1000px) rotateY(180deg)', opacity: 0 },
+        { transform: 'perspective(1000px) rotateY(0deg)', opacity: 1 }
+      ], {
+        duration: duration || 600,
+        delay: delay || 0,
+        easing: 'ease-in-out'
+      });
+    },
+    flipOut({ animate, duration, delay }) {
+      animate([
+        { transform: 'perspective(1000px) rotateY(0deg)', opacity: 1 },
+        { transform: 'perspective(1000px) rotateY(180deg)', opacity: 0 }
+      ], {
+        duration: duration || 600,
+        delay: delay || 0,
+        easing: 'ease-in-out'
+      });
+    }
+  },
+  methods: {
+    flipCard() {
+      this.isFlipped = !this.isFlipped;
+    }
+  },
+  template: `
+    <div class="card-container" on:click="flipCard()">
+      #if !isFlipped
+        <div class="card-front" @flipIn="600,0">
+          <h3>Front of Card</h3>
+          <p>Click to flip</p>
+        </div>
+      :else
+        <div class="card-back" @flipIn="600,0">
+          <h3>Back of Card</h3>
+          <p>Click to flip back</p>
+        </div>
+      /if
+    </div>
+  `
+});
+```
+
+### Loading Spinner
+
+```javascript
+const spinnerApp = new Dative({
+  el: '#spinner',
+  data() {
+    return {
+      isLoading: true
+    }
+  },
+  animate: {
+    spin({ animate, duration }) {
+      animate([
+        { transform: 'rotate(0deg)' },
+        { transform: 'rotate(360deg)' }
+      ], {
+        duration: duration || 1000,
+        iterations: Infinity,
+        easing: 'linear'
+      });
+    },
+    pulse({ animate, duration }) {
+      animate([
+        { opacity: 1, transform: 'scale(1)' },
+        { opacity: 0.7, transform: 'scale(1.1)' },
+        { opacity: 1, transform: 'scale(1)' }
+      ], {
+        duration: duration || 1500,
+        iterations: Infinity,
+        easing: 'ease-in-out'
+      });
+    }
+  },
+  template: `
+    <div>
+      #if isLoading
+        <div class="spinner-container">
+          <div class="spinner" @spin="1000"></div>
+          <p @pulse="1500">Loading...</p>
+        </div>
+      :else
+        <div @fadein="400,0">
+          <h2>Content Loaded!</h2>
+        </div>
+      /if
+    </div>
+  `
+});
+```
+
+### Elastic Bounce
+
+```javascript
+const elasticApp = new Dative({
+  el: '#elastic',
+  animate: {
+    elastic({ animate, duration, delay }) {
+      animate([
+        { transform: 'scale(0) translateY(-100px)', opacity: 0 },
+        { transform: 'scale(1.2) translateY(0)', opacity: 1, offset: 0.7 },
+        { transform: 'scale(0.95) translateY(5px)', offset: 0.85 },
+        { transform: 'scale(1) translateY(0)' }
+      ], {
+        duration: duration || 800,
+        delay: delay || 0,
+        easing: 'cubic-bezier(0.68, -0.55, 0.265, 1.55)'
+      });
+    }
+  },
+  template: `
+    <div>
+      <button @elastic="800,0">Elastic Button</button>
+    </div>
+  `
+});
+```
+
+## Combining with CSS
+
+You can combine DativeJS animations with CSS for more control:
+
+```html
+<style>
+  .smooth-enter {
+    transition: all 300ms ease;
+  }
+  
+  @keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-10px); }
+    75% { transform: translateX(10px); }
+  }
+</style>
+
+<div class="smooth-enter" @fadein="300,0">
+  Combined CSS and JS animation
+</div>
+```
+
+## Performance Tips
+
+<CardGroup cols={2}>
+<Card title="Use Transform" icon="arrows-up-down-left-right">
+Prefer `transform` and `opacity` for best performance. They're GPU-accelerated.
+</Card>
+
+<Card title="Avoid Layout Changes" icon="square-dashed">
+Minimize animations that trigger layout recalculations (width, height, padding).
+</Card>
+
+<Card title="Reasonable Durations" icon="clock">
+Keep animations between 200-600ms for UI interactions. Longer can feel sluggish.
+</Card>
+
+<Card title="Test on Devices" icon="mobile">
+Always test animations on lower-end devices to ensure smooth performance.
+</Card>
+</CardGroup>
+
+## Best Practices
+
+<Steps>
+
+<Step title="Keep animations subtle">
+Subtle animations feel professional. Overly flashy animations can be distracting.
+
+```javascript
+// Good: Subtle fade
+@fadein="300,0"
+
+// Too much: Complex rotation
+@rotateScaleFlip="2000,0" // Probably overkill
+```
+</Step>
+
+<Step title="Use appropriate durations">
+- Micro-interactions: 100-200ms
+- Small UI changes: 200-400ms
+- Larger transitions: 400-600ms
+- Major state changes: 600-800ms
+</Step>
+
+<Step title="Consider user preferences">
+Respect user preferences for reduced motion:
+
+```javascript
+if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+  // Use shorter durations or disable animations
+}
+```
+</Step>
+
+</Steps>
+
+<Warning>
+Avoid animating properties that trigger layout recalculation (like `width`, `height`, `top`, `left`). Use `transform` instead for better performance.
+</Warning>
+
+## Easing Functions
+
+Common easing functions for natural motion:
+
+- `linear` - Constant speed
+- `ease` - Slow start and end
+- `ease-in` - Slow start
+- `ease-out` - Slow end
+- `ease-in-out` - Slow start and end
+- `cubic-bezier(0.4, 0.0, 0.2, 1)` - Material Design standard
+
+```javascript
+animate: {
+  smoothEntry({ animate, duration }) {
+    animate([
+      { opacity: 0, transform: 'translateY(20px)' },
+      { opacity: 1, transform: 'translateY(0)' }
+    ], {
+      duration: duration || 400,
+      easing: 'cubic-bezier(0.4, 0.0, 0.2, 1)' // Material Design
+    });
+  }
+}
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+<Card title="Directives" icon="wand-magic-sparkles" href="/guides/directives">
+Learn about transition directives and other built-in directives
+</Card>
+
+<Card title="Styling" icon="palette" href="/guides/styling">
+Discover scoped CSS and component styling techniques
+</Card>
+</CardGroup>

@@ -1,0 +1,454 @@
+---
+title: 'DativeComponent'
+description: 'API reference for creating reusable components with Dative.extend()'
+---
+
+## Overview
+
+`Dative.extend()` creates a reusable component constructor with support for scoped CSS and props.
+
+```javascript
+const MyComponent = Dative.extend(options)
+const instance = new MyComponent(initialProps)
+```
+
+## Creating Components
+
+### Dative.extend()
+
+<ParamField path="options" type="DativeComponentOptions">
+  Component configuration object extending `DativeOptions`
+</ParamField>
+
+<ResponseField name="return" type="typeof DativeComponent">
+  A constructor function for the component
+</ResponseField>
+
+```javascript
+const Counter = Dative.extend({
+  template: `
+    <div>
+      <h2>{{ title }}</h2>
+      <p>Count: {{ count }}</p>
+      <button on:click="increment()">+</button>
+    </div>
+  `,
+  
+  data() {
+    return {
+      count: 0
+    }
+  },
+  
+  methods: {
+    increment() {
+      this.count++
+    }
+  },
+  
+  props: {
+    title: {
+      type: String,
+      default: 'Counter'
+    }
+  },
+  
+  css: `
+    h2 {
+      color: #333;
+      font-size: 24px;
+    }
+    button {
+      padding: 8px 16px;
+      background: #007bff;
+      color: white;
+      border: none;
+      cursor: pointer;
+    }
+  `
+})
+```
+
+<Warning>
+  Do not pass `el` or `target` to `Dative.extend()`. These should be provided when instantiating the component.
+</Warning>
+
+## DativeComponentOptions
+
+Extends all [DativeOptions](/api/dative-class#dativeoptions) plus:
+
+### css
+
+<ParamField path="css" type="string">
+  Scoped CSS styles for the component. Styles are automatically scoped using data attributes to prevent bleeding to other components.
+
+  ```javascript
+  Dative.extend({
+    css: `
+      .container {
+        padding: 20px;
+      }
+      h1 {
+        color: blue;
+      }
+    `,
+    template: '<div class="container"><h1>Styled</h1></div>'
+  })
+  ```
+
+  The CSS can also reference a `<style>` element by ID:
+
+  ```javascript
+  Dative.extend({
+    css: '#my-styles'
+  })
+  ```
+
+  ```html
+  <style type="text/dss" id="my-styles">
+    .container { padding: 20px; }
+  </style>
+  ```
+</ParamField>
+
+### props
+
+<ParamField path="props" type="object">
+  Component props with type validation. Props are reactive and accessible via `this.propName`.
+
+  **Simple syntax (type only):**
+
+  ```javascript
+  props: {
+    title: String,
+    count: Number,
+    items: Array,
+    config: Object,
+    isActive: Boolean,
+    callback: Function
+  }
+  ```
+
+  **Extended syntax (type + default):**
+
+  ```javascript
+  props: {
+    title: {
+      type: String,
+      default: 'Untitled'
+    },
+    count: {
+      type: Number,
+      default: 0
+    },
+    items: {
+      type: Array,
+      default: []
+    }
+  }
+  ```
+
+  **Supported types:**
+  - `String` - String values
+  - `Number` - Numeric values  
+  - `Boolean` - Boolean values
+  - `Array` - Array values
+  - `Object` - Object values
+  - `Function` - Function values
+  - `null` - Any type (no validation)
+</ParamField>
+
+## Instantiating Components
+
+After creating a component with `Dative.extend()`, instantiate it with the `new` keyword:
+
+```javascript
+const MyComponent = Dative.extend({ /* ... */ })
+
+const instance = new MyComponent({
+  el: '#component-root',
+  props: {
+    title: 'My Title',
+    count: 5
+  }
+})
+```
+
+<ParamField path="initialProps" type="object">
+  Configuration for the component instance
+</ParamField>
+
+### initialProps.el / initialProps.target
+
+<ParamField path="el" type="string | Element">
+  The element to mount the component to
+
+  ```javascript
+  new MyComponent({
+    el: '#app'
+  })
+  ```
+</ParamField>
+
+### initialProps.props
+
+<ParamField path="props" type="object">
+  Prop values to pass to the component
+
+  ```javascript
+  const Counter = Dative.extend({
+    props: {
+      initialCount: Number,
+      step: Number
+    }
+  })
+
+  new Counter({
+    el: '#counter',
+    props: {
+      initialCount: 10,
+      step: 2
+    }
+  })
+  ```
+</ParamField>
+
+### initialProps.attach
+
+<ParamField path="attach" type="Array<DativeComponent> | DativeComponent">
+  Components to attach to this instance
+
+  ```javascript
+  const child = new ChildComponent({ /* ... */ })
+
+  new ParentComponent({
+    el: '#parent',
+    attach: [child]
+  })
+  ```
+</ParamField>
+
+## Props Type Validation
+
+DativeJS validates prop types at runtime and warns in the console when type mismatches occur:
+
+```javascript
+const UserCard = Dative.extend({
+  props: {
+    name: String,
+    age: Number,
+    isAdmin: Boolean
+  },
+  template: `
+    <div>
+      <h3>{{ name }}</h3>
+      <p>Age: {{ age }}</p>
+      <p>Admin: {{ isAdmin }}</p>
+    </div>
+  `
+})
+
+new UserCard({
+  el: '#user',
+  props: {
+    name: 'John Doe',
+    age: '30', // Warning: requires Number but got string
+    isAdmin: true
+  }
+})
+```
+
+When a type mismatch occurs, the prop value becomes `"undefined"` and a warning is logged.
+
+## Scoped CSS
+
+CSS defined in the component is automatically scoped using data attributes:
+
+```javascript
+const Button = Dative.extend({
+  css: `
+    button {
+      background: blue;
+      color: white;
+    }
+  `,
+  template: '<button>Click me</button>'
+})
+```
+
+Generates:
+
+```html
+<button data-dative-css="a1b2c3d4">Click me</button>
+```
+
+```css
+button[data-dative-css~="a1b2c3d4"] {
+  background: blue;
+  color: white;
+}
+```
+
+This prevents style conflicts between components.
+
+### Disabling Scoped CSS
+
+<ParamField path="cssScoped" type="boolean" default="true">
+  Set to `false` to disable CSS scoping (not recommended)
+
+  ```javascript
+  Dative.extend({
+    cssScoped: false,
+    css: '/* Global styles */'
+  })
+  ```
+</ParamField>
+
+## Instance Properties
+
+Component instances have all [Dative instance properties](/api/instance-methods) plus:
+
+### props
+
+<ResponseField name="props" type="object">
+  Object containing all component props
+
+  ```javascript
+  const comp = new MyComponent({
+    props: { title: 'Hello' }
+  })
+
+  console.log(comp.props) // { title: 'Hello' }
+  console.log(comp.title) // 'Hello' (proxied)
+  ```
+</ResponseField>
+
+### css
+
+<ResponseField name="css" type="object">
+  CSS information for the component
+</ResponseField>
+
+<ParamField path="css.value" type="string">
+  Original CSS string
+</ParamField>
+
+<ParamField path="css.transformed" type="object">
+  Scoped CSS transformation info
+</ParamField>
+
+<ParamField path="css.transformed.active" type="boolean">
+  Whether scoping is active
+</ParamField>
+
+<ParamField path="css.transformed.value" type="string">
+  Transformed (scoped) CSS string
+</ParamField>
+
+### cssScoped
+
+<ResponseField name="cssScoped" type="boolean">
+  Whether CSS scoping is enabled
+</ResponseField>
+
+### cssId_
+
+<ResponseField name="cssId_" type="string">
+  Unique identifier used for CSS scoping
+</ResponseField>
+
+## Complete Example
+
+```javascript
+import Dative from 'dativejs'
+
+// Define a reusable TodoItem component
+const TodoItem = Dative.extend({
+  props: {
+    text: {
+      type: String,
+      default: ''
+    },
+    completed: {
+      type: Boolean,
+      default: false
+    }
+  },
+  
+  data() {
+    return {
+      isEditing: false
+    }
+  },
+  
+  methods: {
+    toggleEdit() {
+      this.isEditing = !this.isEditing
+    },
+    
+    toggle() {
+      this.completed = !this.completed
+    }
+  },
+  
+  template: `
+    <div class="todo-item">
+      <input 
+        type="checkbox" 
+        bind:checked="completed"
+        on:change="toggle()"
+      >
+      <span class="{{ completed ? 'completed' : '' }}">
+        {{ text }}
+      </span>
+      <button on:click="toggleEdit()">Edit</button>
+    </div>
+  `,
+  
+  css: `
+    .todo-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px;
+      border: 1px solid #ddd;
+      margin-bottom: 5px;
+    }
+    
+    .completed {
+      text-decoration: line-through;
+      color: #999;
+    }
+    
+    button {
+      margin-left: auto;
+      padding: 5px 10px;
+      background: #007bff;
+      color: white;
+      border: none;
+      cursor: pointer;
+    }
+  `,
+  
+  oncreated() {
+    console.log('TodoItem created with text:', this.text)
+  }
+})
+
+// Use the component
+const todo1 = new TodoItem({
+  el: '#todo-1',
+  props: {
+    text: 'Learn DativeJS',
+    completed: false
+  }
+})
+
+const todo2 = new TodoItem({
+  el: '#todo-2',
+  props: {
+    text: 'Build an app',
+    completed: true
+  }
+})
+```

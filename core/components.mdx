@@ -1,0 +1,684 @@
+---
+title: 'Components'
+description: 'Creating and using components in DativeJS'
+---
+
+## Overview
+
+Components are reusable, self-contained pieces of UI in DativeJS. They can have their own data, methods, templates, and styles.
+
+## Creating Components
+
+### Basic Component with new Dative()
+
+The simplest way to create a component is using the `Dative` constructor:
+
+```javascript
+import Dative from 'dativejs';
+
+const app = new Dative({
+  el: '#app',
+  data() {
+    return {
+      message: 'Hello, DativeJS!'
+    }
+  },
+  template: `
+    <div>
+      <h1>{{ message }}</h1>
+    </div>
+  `
+});
+```
+
+<Note>
+  The `el` or `target` option specifies where the component will be mounted in the DOM.
+</Note>
+
+### Reusable Components with extend()
+
+For reusable components, use `Dative.extend()` to create a component class:
+
+```javascript index.js:1758-1870
+var extend = function extend(options) {
+  var Parent = this;
+  function DativeComponent(initialProps) {
+    if (!(this instanceof DativeComponent)) {
+      warn("Dative.extend class has to be called with the `new` keyboard");
+      return;
+    }
+    var $this = this;
+    $this.options = options;
+    if (initialProps.el || initialProps.target) {
+      $this.options.el = initialProps.el || initialProps.target;
+    } else {
+      $this.options.el = doc.createDocumentFragment();
+    }
+    // ... initialization logic
+  }
+  // ... prototype setup
+  return DativeComponent;
+};
+```
+
+<Tabs>
+  <Tab title="Defining">
+    ```javascript
+    const Counter = Dative.extend({
+      data() {
+        return {
+          count: 0
+        }
+      },
+      template: `
+        <div>
+          <p>Count: {{ count }}</p>
+          <button on:click="increment()">+</button>
+        </div>
+      `,
+      methods: {
+        increment() {
+          this.count++;
+        }
+      }
+    });
+    ```
+  </Tab>
+  <Tab title="Using">
+    ```javascript
+    // Create multiple instances
+    const counter1 = new Counter({ el: '#counter-1' });
+    const counter2 = new Counter({ el: '#counter-2' });
+    ```
+  </Tab>
+</Tabs>
+
+<Warning>
+  `Dative.extend()` does not accept `el` or `target` options in the definition. Pass these when creating instances instead.
+</Warning>
+
+### Using defineApp()
+
+The `defineApp()` helper provides a cleaner syntax for creating applications:
+
+```javascript index.js:1467-1475
+var defineApp = function defineApp(options) {
+  if (options.data) {
+    if (typeof options.data !== "function") {
+      warn(`Data should be a function,But got ${typeof options.data}`);
+      return;
+    }
+  }
+  return new Dative(options);
+};
+```
+
+```javascript
+import { defineApp } from 'dativejs';
+
+const app = defineApp({
+  el: '#app',
+  data() {
+    return {
+      title: 'My App'
+    }
+  },
+  template: `<h1>{{ title }}</h1>`
+});
+```
+
+## Component Options
+
+### data
+
+Defines the reactive state of the component. Must be a function returning an object:
+
+```javascript
+data() {
+  return {
+    message: 'Hello',
+    count: 0,
+    items: ['apple', 'banana', 'orange']
+  }
+}
+```
+
+<Note>
+  The `data` option must be a function to ensure each component instance has its own isolated data.
+</Note>
+
+### template
+
+Defines the component's HTML structure. Can be a string or reference to a `<script>` tag:
+
+<CodeGroup>
+```javascript Inline Template
+template: `
+  <div>
+    <h1>{{ title }}</h1>
+    <p>{{ content }}</p>
+  </div>
+`
+```
+
+```javascript Template Reference
+// Reference a template in HTML
+template: '#my-template'
+```
+
+```html HTML Template
+<!-- In your HTML -->
+<script type="text/dative" id="my-template">
+  <div>
+    <h1>{{ title }}</h1>
+    <p>{{ content }}</p>
+  </div>
+</script>
+```
+</CodeGroup>
+
+### methods
+
+Defines component methods:
+
+```javascript index.js:1143-1181
+function initMethods(dative) {
+  let methods = dative.methods;
+  if (methods) {
+    for (const key in methods) {
+      if (key in dative.data) {
+        warnDuplicate(this, key, "data");
+        return;
+      }
+      if (BuiltinNames(key)) {
+        warn(
+          "Don't use Valid Javascript Builtin names for functions in methods to avoid errors"
+        );
+      }
+      if (typeof methods[key] !== "function") {
+        warn(
+          `Method "${key}" has type "${typeof methods[key]}" in the component definition. ` +
+            `Did you reference the function correctly?`
+        );
+        return;
+      }
+      if (key in dative && isReserved(key)) {
+        warn(
+          `Method "${key}" conflicts with an existing Dative instance method. ` +
+            `Avoid defining component methods that start with _ or $.`
+        );
+        return;
+      }
+      dative[key] =
+        methods[key] == null
+          ? config.noop
+          : typeof methods[key] == "function"
+          ? methods[key].bind(dative)
+          : "";
+      dative[key]._dv_function = true;
+    }
+  }
+}
+```
+
+```javascript
+methods: {
+  greet(name) {
+    return `Hello, ${name}!`;
+  },
+  async fetchData() {
+    const response = await fetch('/api/data');
+    this.data = await response.json();
+  }
+}
+```
+
+<Warning>
+  - Method names cannot conflict with data properties
+  - Avoid using JavaScript built-in names (e.g., `Object`, `Array`, `in`, `of`)
+  - Don't start method names with `$` or `_`
+</Warning>
+
+### computed
+
+Defines computed properties that derive values from reactive data:
+
+```javascript
+computed: {
+  // Function syntax (getter only)
+  fullName() {
+    return `${this.firstName} ${this.lastName}`;
+  },
+  
+  // Object syntax (getter and setter)
+  displayName: {
+    get() {
+      return this.fullName.toUpperCase();
+    },
+    set(value) {
+      const parts = value.split(' ');
+      this.firstName = parts[0];
+      this.lastName = parts[1];
+    }
+  }
+}
+```
+
+## Props System
+
+Props allow parent components to pass data to child components with type validation.
+
+### Defining Props
+
+```javascript index.js:1477-1500
+function initProps(options, dative, prop) {
+  let props = options.props;
+  props = dative.props = props || Object.create(null);
+  if (!Array.isArray(props) && !isPlainObject(props)) {
+    props = {};
+    warn("options props should return an object.");
+  }
+
+  const props_ = prop;
+  for (let propss in props_) {
+    if (typeof prop[propss] === "string" && dative.sanitize) {
+      prop[propss] = sanitizeStr(prop[propss]);
+    }
+    if (!isReserved())
+      dative.proxyProps(
+        `props`,
+        propss,
+        props_[propss].type || props_[propss],
+        propss,
+        props_[propss].default
+      );
+  }
+  observe(props);
+}
+```
+
+<Tabs>
+  <Tab title="Type Validation">
+    ```javascript
+    const UserCard = Dative.extend({
+      props: {
+        name: { type: String },
+        age: { type: Number },
+        isAdmin: { type: Boolean },
+        hobbies: { type: Array },
+        profile: { type: Object }
+      },
+      template: `
+        <div>
+          <h2>{{ name }}</h2>
+          <p>Age: {{ age }}</p>
+          <span>{{ isAdmin ? 'Admin' : 'User' }}</span>
+        </div>
+      `
+    });
+    ```
+  </Tab>
+  <Tab title="With Defaults">
+    ```javascript
+    const Button = Dative.extend({
+      props: {
+        label: {
+          type: String,
+          default: 'Click me'
+        },
+        disabled: {
+          type: Boolean,
+          default: false
+        }
+      },
+      template: `
+        <button bind:disabled="disabled">
+          {{ label }}
+        </button>
+      `
+    });
+    ```
+  </Tab>
+  <Tab title="Shorthand">
+    ```javascript
+    const Card = Dative.extend({
+      props: {
+        title: String,
+        content: String,
+        tags: Array
+      },
+      template: `
+        <div>
+          <h3>{{ title }}</h3>
+          <p>{{ content }}</p>
+        </div>
+      `
+    });
+    ```
+  </Tab>
+</Tabs>
+
+### Supported Prop Types
+
+<CardGroup cols={3}>
+  <Card title="String" icon="text">
+    `type: String`
+  </Card>
+  <Card title="Number" icon="hashtag">
+    `type: Number`
+  </Card>
+  <Card title="Boolean" icon="toggle-on">
+    `type: Boolean`
+  </Card>
+  <Card title="Array" icon="list">
+    `type: Array`
+  </Card>
+  <Card title="Object" icon="cube">
+    `type: Object`
+  </Card>
+  <Card title="Function" icon="function">
+    `type: Function`
+  </Card>
+</CardGroup>
+
+<Warning>
+  If a prop receives a value that doesn't match its type, DativeJS will log a warning and return `"undefined"`.
+</Warning>
+
+### Passing Props
+
+```javascript
+const user = new UserCard({
+  el: '#user-card',
+  props: {
+    name: 'John Doe',
+    age: 30,
+    isAdmin: true,
+    hobbies: ['reading', 'coding'],
+    profile: { avatar: 'avatar.jpg' }
+  }
+});
+```
+
+## Component Composition
+
+### Attaching Components
+
+Components can be attached to each other to create parent-child relationships:
+
+```javascript index.js:1098-1106
+Dative.prototype.attach = function (component) {
+  var ref = this;
+  // Attach components
+  let polyps = type(component) === "array" ? component : [component];
+  for (let polyp of polyps) {
+    ref.attached.push(polyp);
+  }
+};
+```
+
+<CodeGroup>
+```javascript Parent
+const parent = new Dative({
+  el: '#parent',
+  template: `
+    <div>
+      <h1>Parent Component</h1>
+      <div id="child-slot"></div>
+    </div>
+  `
+});
+
+const child = new Dative({
+  el: '#child-slot',
+  template: `<p>Child Component</p>`
+});
+
+// Attach child to parent
+parent.attach(child);
+```
+
+```javascript Multiple Children
+const child1 = new Counter({ el: '#counter-1' });
+const child2 = new Counter({ el: '#counter-2' });
+
+// Attach multiple components
+parent.attach([child1, child2]);
+```
+
+```javascript At Creation
+const child = new Dative({ el: '#child' });
+
+const parent = new Dative({
+  el: '#parent',
+  attach: child  // or [child1, child2]
+});
+```
+</CodeGroup>
+
+### Detaching Components
+
+```javascript index.js:1112-1120
+Dative.prototype.detach = function (component) {
+  // Detach components
+  let polyps = type(component) === "array" ? component : [component];
+  for (let polyp of polyps) {
+    let index = this.attached.indexOf(polyp);
+    if (index < 0) return;
+    this.attached.splice(index, 1);
+  }
+};
+```
+
+```javascript
+// Detach a single component
+parent.detach(child);
+
+// Detach multiple components
+parent.detach([child1, child2]);
+```
+
+## Scoped Styles
+
+Components can have scoped CSS that only applies to that component:
+
+```javascript index.js:1818-1841
+if (styles) {
+  if (styles[0] === "#") {
+    styles = idToTemplate$1(styles);
+  }
+
+  var compiled_styles = parse(styles, $this);
+  if (scoped) {
+    var compiled = transformCss(compiled_styles, $this.cssId_);
+    $this.css = {
+      value: compiled_styles,
+      transformed: { active: true, value: compiled },
+    };
+    if (doc.querySelector("style[data-dative-css]")) {
+      var st = doc.querySelector("style[data-dative-css]");
+      st.innerHTML = st.innerHTML + compiled;
+    } else {
+      var style = getStyle();
+      style.innerHTML = compiled;
+    }
+  }
+}
+```
+
+```javascript
+const StyledButton = Dative.extend({
+  data() {
+    return {
+      label: 'Click me'
+    }
+  },
+  template: `
+    <button class="btn">
+      {{ label }}
+    </button>
+  `,
+  css: `
+    .btn {
+      background: #007bff;
+      color: white;
+      padding: 10px 20px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    .btn:hover {
+      background: #0056b3;
+    }
+  `
+});
+```
+
+<Note>
+  By default, `cssScoped` is `true`. Styles are automatically scoped using `data-dative-css` attributes.
+</Note>
+
+### Referencing Style Templates
+
+```html
+<style type="text/dss" id="button-styles">
+  .btn {
+    background: blue;
+    color: white;
+  }
+</style>
+```
+
+```javascript
+const StyledButton = Dative.extend({
+  css: '#button-styles',
+  // ... rest of component
+});
+```
+
+## Instance Properties and Methods
+
+### Properties
+
+<ResponseField name="$el" type="Element">
+  The root DOM element of the component
+</ResponseField>
+
+<ResponseField name="data" type="Object">
+  The reactive data object
+</ResponseField>
+
+<ResponseField name="$ref" type="Object">
+  Object containing elements with `ref` or `bind:this` directives
+</ResponseField>
+
+<ResponseField name="isMounted" type="boolean">
+  Whether the component is currently mounted
+</ResponseField>
+
+<ResponseField name="isUnmounted" type="boolean">
+  Whether the component has been destroyed
+</ResponseField>
+
+### Methods
+
+<ResponseField name="render()" type="Element">
+  Manually trigger a re-render of the component
+  ```javascript
+  this.render();
+  ```
+</ResponseField>
+
+<ResponseField name="set(key, value)" type="void">
+  Update reactive data and trigger re-render
+  ```javascript
+  this.set('count', 10);
+  this.set({ count: 10, message: 'Updated' });
+  ```
+</ResponseField>
+
+<ResponseField name="get(path)" type="any">
+  Get data value, supports nested paths
+  ```javascript
+  const value = this.get('user.name');
+  ```
+</ResponseField>
+
+<ResponseField name="attach(component)" type="void">
+  Attach child components
+  ```javascript
+  this.attach(childComponent);
+  this.attach([child1, child2]);
+  ```
+</ResponseField>
+
+<ResponseField name="detach(component)" type="void">
+  Detach child components
+  ```javascript
+  this.detach(childComponent);
+  ```
+</ResponseField>
+
+<ResponseField name="$destroy()" type="void">
+  Destroy the component and clean up
+  ```javascript
+  this.$destroy();
+  ```
+</ResponseField>
+
+<ResponseField name="use(...plugins)" type="this">
+  Install plugins
+  ```javascript
+  this.use(plugin1, plugin2);
+  ```
+</ResponseField>
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Keep components focused">
+    Each component should have a single, well-defined responsibility. Break complex UIs into smaller, reusable components.
+  </Accordion>
+  
+  <Accordion title="Use props for parent-child communication">
+    Pass data from parent to child using props with proper type validation.
+    
+    ```javascript
+    const Child = Dative.extend({
+      props: {
+        message: { type: String }
+      },
+      template: `<p>{{ message }}</p>`
+    });
+    ```
+  </Accordion>
+  
+  <Accordion title="Scope your styles">
+    Use scoped CSS to prevent style conflicts between components.
+    
+    ```javascript
+    const Component = Dative.extend({
+      css: `.component { /* styles */ }`,
+      cssScoped: true  // default
+    });
+    ```
+  </Accordion>
+  
+  <Accordion title="Avoid data/methods/computed name conflicts">
+    Ensure property names don't overlap between data, methods, and computed properties.
+  </Accordion>
+</AccordionGroup>
+
+## Related
+
+<CardGroup cols={3}>
+  <Card title="Reactivity" icon="arrows-rotate" href="/core/reactivity">
+    Understand the reactivity system
+  </Card>
+  <Card title="Lifecycle" icon="clock" href="/core/lifecycle">
+    Learn about lifecycle hooks
+  </Card>
+  <Card title="Templating" icon="code" href="/core/templating">
+    Master template syntax
+  </Card>
+</CardGroup>

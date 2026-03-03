@@ -1,0 +1,510 @@
+---
+title: 'Instance Methods'
+description: 'API reference for Dative instance methods'
+---
+
+## Overview
+
+Every Dative instance has several built-in methods for controlling rendering, managing data, and working with components.
+
+## render()
+
+Renders or re-renders the instance template to the DOM.
+
+```javascript
+app.render()
+```
+
+<ResponseField name="return" type="Element">
+  The mounted DOM element
+</ResponseField>
+
+### Description
+
+The `render()` method:
+1. Parses the template string
+2. Compiles template expressions with current data
+3. Diffs the new template against existing DOM
+4. Updates only changed nodes (virtual DOM-like)
+5. Processes directives, events, and bindings
+6. Renders attached components
+
+### Usage
+
+```javascript
+const app = new Dative({
+  el: '#app',
+  data() {
+    return { message: 'Hello' }
+  },
+  template: '<div>{{ message }}</div>'
+})
+
+// Manually trigger re-render
+app.render()
+```
+
+<Info>
+  `render()` is called automatically when reactive data changes. You rarely need to call it manually.
+</Info>
+
+## set()
+
+Sets data properties and triggers a re-render.
+
+```javascript
+app.set(key, value)
+app.set(object)
+```
+
+<ParamField path="key" type="string">
+  The property name to set
+</ParamField>
+
+<ParamField path="value" type="any">
+  The value to set
+</ParamField>
+
+<ParamField path="object" type="object">
+  Object with multiple key-value pairs to set
+</ParamField>
+
+### Usage
+
+**Setting a single property:**
+
+```javascript
+const app = new Dative({
+  el: '#app',
+  data() {
+    return {
+      count: 0,
+      message: 'Hello'
+    }
+  }
+})
+
+app.set('count', 10)
+app.set('message', 'Updated!')
+```
+
+**Setting multiple properties:**
+
+```javascript
+app.set({
+  count: 20,
+  message: 'Batch update',
+  newProp: 'New value'
+})
+```
+
+<Warning>
+  Each `set()` call triggers a re-render. When updating multiple properties, use the object syntax to batch updates.
+</Warning>
+
+## get()
+
+Retrieves a data property value or the entire instance.
+
+```javascript
+app.get()
+app.get(path)
+```
+
+<ParamField path="path" type="string" default="''">
+  Dot-notation path to the property (e.g., `'user.name'`)
+</ParamField>
+
+<ResponseField name="return" type="any | Dative">
+  The property value or entire instance if no path provided
+</ResponseField>
+
+### Usage
+
+**Get entire instance:**
+
+```javascript
+const instance = app.get()
+console.log(instance === app) // true
+```
+
+**Get single property:**
+
+```javascript
+const app = new Dative({
+  data() {
+    return {
+      count: 5,
+      user: {
+        name: 'John',
+        age: 30
+      }
+    }
+  }
+})
+
+console.log(app.get('count')) // 5
+console.log(app.get('user.name')) // 'John'
+console.log(app.get('user.age')) // 30
+```
+
+<Info>
+  You can also access properties directly: `app.count` or `app.user.name`
+</Info>
+
+## attach()
+
+Attaches one or more child components to this instance. Attached components will re-render when the parent renders.
+
+```javascript
+app.attach(component)
+app.attach([component1, component2])
+```
+
+<ParamField path="component" type="DativeComponent | Array<DativeComponent>">
+  Component instance(s) to attach
+</ParamField>
+
+### Usage
+
+```javascript
+const ChildComponent = Dative.extend({
+  template: '<p>Child: {{ childData }}</p>',
+  data() {
+    return { childData: 'Hello from child' }
+  }
+})
+
+const child1 = new ChildComponent({ el: '#child1' })
+const child2 = new ChildComponent({ el: '#child2' })
+
+const parent = new Dative({
+  el: '#parent',
+  data() {
+    return { parentData: 'Parent' }
+  },
+  template: `
+    <div>
+      <h1>{{ parentData }}</h1>
+      <div id="child1"></div>
+      <div id="child2"></div>
+    </div>
+  `
+})
+
+// Attach children to parent
+parent.attach([child1, child2])
+
+// When parent.render() is called, children re-render too
+parent.render()
+```
+
+### Circular Attachment Protection
+
+<Warning>
+  DativeJS prevents circular attachments (parent attached to child that's attached to parent) to avoid infinite loops.
+</Warning>
+
+## detach()
+
+Detaches one or more child components from this instance.
+
+```javascript
+app.detach(component)
+app.detach([component1, component2])
+```
+
+<ParamField path="component" type="DativeComponent | Array<DativeComponent>">
+  Component instance(s) to detach
+</ParamField>
+
+### Usage
+
+```javascript
+const child = new ChildComponent({ el: '#child' })
+const parent = new Dative({ el: '#parent' })
+
+// Attach
+parent.attach(child)
+
+// Later, detach
+parent.detach(child)
+
+// child will no longer re-render when parent renders
+```
+
+## use()
+
+Installs one or more plugins on the instance.
+
+```javascript
+app.use(plugin1, plugin2, ...)
+```
+
+<ParamField path="...plugins" type="Array<DativePlugin>">
+  Plugin(s) to install
+</ParamField>
+
+<ResponseField name="return" type="Dative">
+  The instance (for chaining)
+</ResponseField>
+
+### Usage
+
+**Function plugin:**
+
+```javascript
+const myPlugin = ({ instance, proto, Dative }) => {
+  // Add instance method
+  instance.customMethod = function() {
+    console.log('Custom method called')
+  }
+  
+  // Add to prototype
+  proto.anotherMethod = function() {
+    return this.data
+  }
+}
+
+const app = new Dative({ /* ... */ })
+app.use(myPlugin)
+
+app.customMethod() // 'Custom method called'
+```
+
+**Object plugin with install method:**
+
+```javascript
+const routerPlugin = {
+  install({ instance, proto, Dative }) {
+    instance.$router = {
+      push(path) {
+        window.location.hash = path
+      },
+      currentPath() {
+        return window.location.hash.slice(1)
+      }
+    }
+  }
+}
+
+app.use(routerPlugin)
+console.log(app.$router.currentPath())
+```
+
+**Multiple plugins:**
+
+```javascript
+app.use(plugin1, plugin2, plugin3)
+```
+
+**Via options:**
+
+```javascript
+new Dative({
+  el: '#app',
+  use: [plugin1, plugin2]
+})
+```
+
+## proxy()
+
+Creates a reactive proxy from one object property to another.
+
+```javascript
+app.proxy(sourceKey, key)
+```
+
+<ParamField path="sourceKey" type="string">
+  The source object key (e.g., `'data'`, `'props'`)
+</ParamField>
+
+<ParamField path="key" type="string">
+  The property name to proxy
+</ParamField>
+
+### Description
+
+Creates a getter/setter on the instance that proxies to a nested property. Getting/setting triggers reactivity and re-rendering.
+
+### Usage
+
+```javascript
+const app = new Dative({
+  data() {
+    return {
+      nested: {
+        value: 10
+      }
+    }
+  }
+})
+
+// Create proxy
+app.proxy('data', 'myValue')
+
+// Now you can access data.nested.value as app.myValue
+app.myValue = 20 // Sets data.nested.value and triggers render
+console.log(app.myValue) // 20
+```
+
+<Info>
+  `proxy()` is used internally to make `data` properties accessible directly on the instance. You typically don't need to call it manually.
+</Info>
+
+## $destroy()
+
+Destroys the instance, removes it from the DOM, and calls the `ondestroy` lifecycle hook.
+
+```javascript
+app.$destroy()
+```
+
+### Description
+
+The `$destroy()` method:
+1. Checks if instance is mounted
+2. Removes the first child from the mount element
+3. Deletes the `onmounted` hook
+4. Removes the `dative_app` reference from the element
+5. Updates `isUnmounted` and `isMounted` flags
+6. Calls the `ondestroy()` lifecycle hook
+
+### Usage
+
+```javascript
+const app = new Dative({
+  el: '#app',
+  template: '<div>Hello World</div>',
+  
+  ondestroy() {
+    console.log('App destroyed!')
+    // Cleanup: remove event listeners, clear timers, etc.
+  }
+})
+
+// Later...
+app.$destroy()
+// Console: 'App destroyed!'
+// DOM element cleared
+```
+
+<Warning>
+  - Cannot destroy an instance that's already been destroyed
+  - Cannot destroy an instance that was never mounted
+  - Once destroyed, the instance cannot be re-mounted
+</Warning>
+
+### Cleanup Example
+
+```javascript
+const app = new Dative({
+  el: '#app',
+  
+  data() {
+    return {
+      timer: null
+    }
+  },
+  
+  onmounted() {
+    // Start interval
+    this.timer = setInterval(() => {
+      console.log('Tick')
+    }, 1000)
+  },
+  
+  ondestroy() {
+    // Clean up interval
+    if (this.timer) {
+      clearInterval(this.timer)
+      this.timer = null
+    }
+    console.log('Cleanup complete')
+  }
+})
+
+// Clean up after 10 seconds
+setTimeout(() => {
+  app.$destroy()
+}, 10000)
+```
+
+## Instance Properties
+
+These read-only properties are available on every instance:
+
+### $el
+
+<ResponseField name="$el" type="Element">
+  The mounted DOM element
+
+  ```javascript
+  console.log(app.$el.tagName)
+  app.$el.classList.add('active')
+  ```
+</ResponseField>
+
+### $ref
+
+<ResponseField name="$ref" type="object">
+  Object containing elements marked with `ref` or `dv-ref`
+
+  ```javascript
+  // Template: <input ref="nameInput">
+  app.$ref.nameInput.focus()
+  
+  // Or: <input dv-ref="emailInput">
+  app.$ref.emailInput.value = 'test@example.com'
+  
+  // Or: <div bind:this="myDiv">
+  app.$ref.myDiv.style.color = 'red'
+  ```
+</ResponseField>
+
+### data
+
+<ResponseField name="data" type="object">
+  The reactive data object
+
+  ```javascript
+  console.log(app.data)
+  app.data.count++ // Triggers reactivity
+  ```
+</ResponseField>
+
+### template
+
+<ResponseField name="template" type="string">
+  The compiled template string
+</ResponseField>
+
+### methods
+
+<ResponseField name="methods" type="object">
+  Object containing all methods
+</ResponseField>
+
+### isMounted
+
+<ResponseField name="isMounted" type="boolean">
+  Whether the instance is currently mounted
+</ResponseField>
+
+### isUnmounted
+
+<ResponseField name="isUnmounted" type="boolean">
+  Whether the instance has been destroyed
+</ResponseField>
+
+### attached
+
+<ResponseField name="attached" type="Array<DativeComponent>">
+  Array of attached child components
+</ResponseField>
+
+### _uid
+
+<ResponseField name="_uid" type="number">
+  Unique identifier for the instance
+</ResponseField>

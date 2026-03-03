@@ -1,0 +1,841 @@
+---
+title: 'Template Syntax'
+description: 'Master the template syntax and directives in DativeJS'
+---
+
+## Overview
+
+DativeJS templates use a powerful syntax that compiles to JavaScript. Templates support interpolation, control flow, loops, and custom directives.
+
+## Template Compilation
+
+Templates are parsed and compiled into executable JavaScript code:
+
+```javascript index.js:341-395
+function parse(html, options, elem) {
+  html = html.trim();
+  var re = /{{(.+?)}}/g,
+    reExp =
+      /(^( )?(var|let|const|await|if|for|else|{|}|#each|\/each|#if|:else|:else if|\/if|#with|\/with|debugger|@debug|\$:|;))(.*)?/g,
+    code = "with(obj) { var r=[]; ",
+    cursor = 0,
+    result = "",
+    match;
+  code += "var _c = (msg)=>{ return r.push(msg)}; ";
+  var add = function (line, js) {
+    js
+      ? (code += line.match(reExp)
+          ? line
+              .replace(/#each ((?:.|)+)/g, eachparse())
+              .replace(/\/each/g, "\n}")
+              .replace(/#if ((?:.|)+)/g, ifparse)
+              .replace(/:else if ((?:.|)+)/g, elseifparse)
+              .replace(/:else/g, elseparse)
+              .replace(/\/if/g, "}")
+              .replace(/#with ((?:.|)+)/g, withparse)
+              .replace(/\/with/g, (_) => `}`)
+              .replace(/@debug\s+?((?:.|)+)/g, debugparse)
+              .replace(/\$:\s+((?:.|)+)/g, variableparse) + "\n"
+          : "_c(" + line.replace(/!(--)?((?:.|)+)?/g, commentparse) + ");\n")
+      : (code +=
+          line != ""
+            ? "_c(`" +
+              line.replace(string$, "\\`").replace(/\${/g, "$\\{") +
+              "`);"
+            : "");
+
+    return add;
+  };
+  while ((match = re.exec(html))) {
+    add(html.slice(cursor, match.index))(match[1], true);
+    cursor = match.index + match[0].length;
+  }
+
+  add(html.substr(cursor, html.length - cursor));
+  code = (code + 'return r.join(""); }').replace(/[\t]/g, "").trim();
+  try {
+    result = new Function("obj", code).apply(options, [options]);
+  } catch (err) {
+    console.error(
+      "Compiler " +
+        err.name +
+        ": " +
+        err.message +
+        " at \n" +
+        generateCodeFrame(options.template)
+    );
+  }
+  return result;
+}
+```
+
+<Note>
+  The parser converts template syntax into a JavaScript function that builds the HTML string.
+</Note>
+
+## Interpolation
+
+### Text Interpolation
+
+Use double curly braces `{{ }}` to display data:
+
+```html
+<template>
+  <div>
+    <h1>{{ title }}</h1>
+    <p>Count: {{ count }}</p>
+    <span>{{ firstName + ' ' + lastName }}</span>
+  </div>
+</template>
+```
+
+```javascript
+const app = new Dative({
+  el: '#app',
+  data() {
+    return {
+      title: 'Hello World',
+      count: 42,
+      firstName: 'John',
+      lastName: 'Doe'
+    }
+  }
+});
+```
+
+### Expressions
+
+You can use JavaScript expressions inside interpolations:
+
+```html
+{{ count + 1 }}
+{{ message.toUpperCase() }}
+{{ isActive ? 'Active' : 'Inactive' }}
+{{ items.length > 0 ? 'Has items' : 'Empty' }}
+{{ user.profile.name || 'Anonymous' }}
+```
+
+<Warning>
+  Interpolations are executed in the context of the component instance using `with(obj)`, so you have direct access to data, computed, and methods.
+</Warning>
+
+## Control Flow
+
+### Conditional Rendering (#if, :else, :else if)
+
+```javascript index.js:256-264
+function ifparse(_, char) {
+  return `if (${char}) {`;
+}
+function elseifparse(_, char) {
+  return `} else if (${char}) {`;
+}
+function elseparse(_, char) {
+  return "} else {";
+}
+```
+
+<Tabs>
+  <Tab title="Basic If">
+    ```html
+    <template>
+      <div>
+        #if isLoggedIn
+          <p>Welcome back!</p>
+        /if
+      </div>
+    </template>
+    ```
+    
+    ```javascript
+    data() {
+      return {
+        isLoggedIn: true
+      }
+    }
+    ```
+  </Tab>
+  
+  <Tab title="If-Else">
+    ```html
+    <template>
+      <div>
+        #if hasItems
+          <p>You have items</p>
+        :else
+          <p>No items found</p>
+        /if
+      </div>
+    </template>
+    ```
+  </Tab>
+  
+  <Tab title="If-Else If-Else">
+    ```html
+    <template>
+      <div>
+        #if score >= 90
+          <span>Grade: A</span>
+        :else if score >= 80
+          <span>Grade: B</span>
+        :else if score >= 70
+          <span>Grade: C</span>
+        :else
+          <span>Grade: F</span>
+        /if
+      </div>
+    </template>
+    ```
+  </Tab>
+</Tabs>
+
+<Note>
+  - Use `#if condition` to start a conditional block
+  - Use `:else if condition` for additional conditions
+  - Use `:else` for the default case
+  - Always close with `/if`
+</Note>
+
+### Loops (#each)
+
+```javascript index.js:225-255
+function eachparse(options) {
+  return (_, char) => {
+    if (!char.includes("as")) {
+      warn("Expected keyword 'as' But got " + "'  '" + "");
+    }
+    char = char.replace(/as/, "of");
+    var each = char.split("of");
+    function d(c) {
+      if (c[1].startsWith("{") && c[1].split(" ") && c[1].endsWith("}")) {
+        var space = c[1].split(" ");
+        for (const {} in space) {
+          var cx = space.join(",");
+          return `[${c[0]}, ${cx}]`;
+        }
+      }
+      return `[${c[0]},${c[1]}]`;
+    }
+
+    return `for (const ${
+      each[1].includes(",")
+        ? d(each[1].split(","))
+        : each[1].startsWith("{") && each[1].endsWith("}")
+        ? each[1]
+        : each[1]
+    } of ${
+      !each[1].startsWith("{") && each[1].includes(",")
+        ? `Object.entries(${each[0].trim()})`
+        : each[0]
+    }) {`;
+  };
+}
+```
+
+<Tabs>
+  <Tab title="Array Iteration">
+    ```html
+    <template>
+      <ul>
+        #each items as item
+          <li>{{ item }}</li>
+        /each
+      </ul>
+    </template>
+    ```
+    
+    ```javascript
+    data() {
+      return {
+        items: ['Apple', 'Banana', 'Orange']
+      }
+    }
+    ```
+  </Tab>
+  
+  <Tab title="With Index">
+    ```html
+    <template>
+      <ul>
+        #each items, index as item
+          <li>{{ index + 1 }}. {{ item }}</li>
+        /each
+      </ul>
+    </template>
+    ```
+  </Tab>
+  
+  <Tab title="Object Iteration">
+    ```html
+    <template>
+      <div>
+        #each user, key as value
+          <p>{{ key }}: {{ value }}</p>
+        /each
+      </div>
+    </template>
+    ```
+    
+    ```javascript
+    data() {
+      return {
+        user: {
+          name: 'John',
+          age: 30,
+          city: 'New York'
+        }
+      }
+    }
+    ```
+  </Tab>
+  
+  <Tab title="Array of Objects">
+    ```html
+    <template>
+      <div>
+        #each users as user
+          <div class="card">
+            <h3>{{ user.name }}</h3>
+            <p>{{ user.email }}</p>
+          </div>
+        /each
+      </div>
+    </template>
+    ```
+    
+    ```javascript
+    data() {
+      return {
+        users: [
+          { name: 'Alice', email: 'alice@example.com' },
+          { name: 'Bob', email: 'bob@example.com' }
+        ]
+      }
+    }
+    ```
+  </Tab>
+</Tabs>
+
+<Note>
+  - Use `#each array as item` to iterate over arrays
+  - Use `#each array, index as item` to access the index
+  - Use `#each object, key as value` to iterate over object properties
+  - Always close with `/each`
+  - The keyword `as` is required
+</Note>
+
+### With Blocks (#with)
+
+```javascript index.js:266-268
+function withparse(_, char) {
+  return `with (${char}) {`;
+}
+```
+
+Change the scope context within a template block:
+
+```html
+<template>
+  <div>
+    #with user
+      <h2>{{ name }}</h2>
+      <p>{{ email }}</p>
+      <p>{{ address.city }}, {{ address.country }}</p>
+    /with
+  </div>
+</template>
+```
+
+```javascript
+data() {
+  return {
+    user: {
+      name: 'Jane Doe',
+      email: 'jane@example.com',
+      address: {
+        city: 'London',
+        country: 'UK'
+      }
+    }
+  }
+}
+```
+
+## Directives
+
+Directives are special attributes prefixed with `dv-` or their shorthand.
+
+### Event Handling (on:)
+
+```javascript index.js:894-914
+if (name.startsWith(prefix("on:")) || name.startsWith("on:")) {
+  var eventName = name.slice(6);
+  if (name.startsWith("on:")) {
+    eventName = name.slice(3);
+  }
+
+  const handlerName = el.getAttribute(name);
+  if ($app.events) {
+    for (const events in $app.events) {
+      const vall = $app.events[events];
+      if (eventName === events) {
+        vall(el, event.bind(this));
+      }
+    }
+  }
+  el.addEventListener(eventName, (evt) => {
+    event(this, handlerName, el, evt);
+  });
+
+  el.removeAttribute(name);
+}
+```
+
+<CodeGroup>
+```html Click Events
+<button on:click="handleClick()">Click me</button>
+<button dv-on:click="count++">Increment</button>
+```
+
+```html Input Events
+<input on:input="handleInput($event)" />
+<input on:change="updateValue($event)" />
+```
+
+```html Keyboard Events
+<input on:keyup="search()" />
+<input on:keydown.enter="submit()" />
+```
+
+```html Mouse Events
+<div on:mouseover="showTooltip()" on:mouseout="hideTooltip()">
+  Hover me
+</div>
+```
+</CodeGroup>
+
+<Note>
+  - Use `on:eventname` or `dv-on:eventname`
+  - Access the native event with `$event`
+  - Access the element with `$self`
+</Note>
+
+### Property Binding (bind:)
+
+```javascript index.js:1024-1046
+if (name.startsWith(prefix("bind:")) || name.startsWith("bind:")) {
+  let propName = name.slice(8);
+  if (name.startsWith("bind:")) {
+    propName = name.slice(5);
+  }
+  const dataName = el.getAttribute(name);
+  if (propName === "this") {
+    if (el.ref) {
+      warnDuplicate$(el, "bind:this", el, true);
+      return;
+    }
+    this.$ref[dataName] = el;
+    el.removeAttribute(name);
+  } else {
+    el[this.kebabToCamel(propName)] = attributeparser(
+      this,
+      dataName,
+      el
+    );
+    el.removeAttribute(name);
+  }
+}
+```
+
+<Tabs>
+  <Tab title="Element Properties">
+    ```html
+    <input bind:value="message" />
+    <img bind:src="imageUrl" />
+    <a bind:href="linkUrl">Link</a>
+    <input bind:disabled="isDisabled" />
+    <input bind:checked="isChecked" />
+    ```
+  </Tab>
+  
+  <Tab title="Element Reference">
+    ```html
+    <input bind:this="emailInput" />
+    <canvas bind:this="myCanvas" />
+    ```
+    
+    ```javascript
+    methods: {
+      focusEmail() {
+        this.$ref.emailInput.focus();
+      },
+      drawOnCanvas() {
+        const ctx = this.$ref.myCanvas.getContext('2d');
+        // ... draw on canvas
+      }
+    }
+    ```
+  </Tab>
+</Tabs>
+
+### References (ref, dv-ref)
+
+```javascript index.js:1015-1023
+if (name === prefix("ref") || name === "ref") {
+  if (el.ref) {
+    warnDuplicate$(el, "ref", el, true);
+    return;
+  }
+  const refName = el.getAttribute(name);
+  this.$ref[refName] = el;
+  el.removeAttribute(name);
+}
+```
+
+```html
+<input ref="searchInput" />
+<div ref="modalContainer"></div>
+<canvas ref="chartCanvas"></canvas>
+```
+
+```javascript
+methods: {
+  focusSearch() {
+    this.$ref.searchInput.focus();
+  },
+  openModal() {
+    this.$ref.modalContainer.style.display = 'block';
+  }
+}
+```
+
+### Animations (animate:, @)
+
+```javascript index.js:972-1014
+if (name.startsWith("animate:") || name.startsWith("@")) {
+  var animation_name = name.slice(8);
+  if (name.startsWith("@")) {
+    animation_name = name.slice(1);
+  }
+  const checkani = el.getAttribute(name).split(",");
+
+  var animationName = {
+    duration: checkani[0],
+    delay: checkani[1],
+    ease: checkani[2],
+  };
+  const delay = animationName.delay;
+  const duration = animationName.duration;
+  const ease = animationName.ease;
+  if ($app.animate) {
+    for (const animate in $app.animate) {
+      const vall = $app.animate[animate];
+      const setStyle = (options) => {
+        for (const key in options) {
+          if (Object.hasOwnProperty.call(options, key)) {
+            const property = options[key];
+            el.style[key] = property;
+          }
+        }
+      };
+      if (animation_name === animate) {
+        vall({
+          animate: el.animate.bind(el),
+          setStyle,
+          duration: Number(duration),
+          delay: Number(delay),
+          ease: ease,
+        });
+      }
+    }
+  }
+  if (animation_name === "fadein") {
+    fadeIn(el, Number(duration) || 200, Number(delay) || 200);
+  } else if (animation_name === "bounce") {
+    bounce(el, Number(duration) || 200, Number(delay) || 200);
+  }
+  el.removeAttribute(name);
+}
+```
+
+<Tabs>
+  <Tab title="Built-in Animations">
+    ```html
+    <!-- FadeIn animation -->
+    <div @fadein="300,100">Fades in</div>
+    
+    <!-- Bounce animation -->
+    <div @bounce="500,0">Bounces</div>
+    ```
+    
+    Format: `duration,delay` in milliseconds
+  </Tab>
+  
+  <Tab title="Custom Animations">
+    ```javascript
+    const app = new Dative({
+      el: '#app',
+      template: `
+        <div @slide="300,100">Slides in</div>
+      `,
+      animate: {
+        slide({ animate, setStyle, duration, delay }) {
+          setStyle({
+            opacity: '0',
+            transform: 'translateX(-100px)'
+          });
+          
+          animate([
+            { opacity: 0, transform: 'translateX(-100px)' },
+            { opacity: 1, transform: 'translateX(0)' }
+          ], {
+            duration,
+            delay,
+            fill: 'forwards'
+          });
+        }
+      }
+    });
+    ```
+  </Tab>
+</Tabs>
+
+### Cloak (dv-cloak)
+
+```javascript index.js:1047-1058
+if (name === prefix("cloak")) {
+  if (el.getAttribute(name) !== "") {
+    warn(
+      "`dv-cloak` doesn't accepts any value.\nShould be\n<" +
+        el.tagName.toLowerCase() +
+        " dv-cloak ...>...</" +
+        el.tagName.toLowerCase() +
+        ">"
+    );
+  }
+  queueMicrotask(() => el.removeAttribute(name));
+}
+```
+
+Hide elements until the component is ready:
+
+```html
+<style>
+  [dv-cloak] {
+    display: none;
+  }
+</style>
+
+<div dv-cloak>
+  {{ message }}
+</div>
+```
+
+<Note>
+  The `dv-cloak` attribute is automatically removed after the component mounts, preventing a flash of uncompiled template.
+</Note>
+
+### Custom Directives
+
+```javascript index.js:1060-1087
+for (var keys in $app.directives) {
+  var val = $app.directives[keys];
+  if (typeof val === "function") {
+    var $name = keys;
+    if (name.startsWith(prefix($name))) {
+      var binding = el.getAttribute(name);
+      let modifiers = name.match(/\.[^.\]]+(?=[^\]]*$)/g) || [];
+      val(el, {
+        bind: {
+          value: attributeparser(this, binding, el),
+          args: name.split(":")[1],
+          name: name,
+          expression: binding,
+          modifiers: modifiers.map((i) => i.replace(".", "")),
+        },
+      });
+      val._dv_directives_ = el._dv_directives_ = {
+        active: true,
+        args: name.split(":")[1],
+        value: attributeparser(this, binding, el),
+        expression: binding,
+        name: name,
+        modifiers: modifiers.map((i) => i.replace(".", "")),
+      };
+      el.removeAttribute(name);
+    }
+  }
+}
+```
+
+Create custom directives for reusable DOM manipulation:
+
+```javascript
+const app = new Dative({
+  el: '#app',
+  template: `
+    <div dv-tooltip="This is a tooltip">Hover me</div>
+    <input dv-focus />
+    <div dv-color:text.bold="'red'">Colored text</div>
+  `,
+  directives: {
+    tooltip(el, { bind }) {
+      const tooltip = document.createElement('div');
+      tooltip.textContent = bind.value;
+      tooltip.className = 'tooltip';
+      
+      el.addEventListener('mouseenter', () => {
+        document.body.appendChild(tooltip);
+      });
+      
+      el.addEventListener('mouseleave', () => {
+        tooltip.remove();
+      });
+    },
+    
+    focus(el, { bind }) {
+      el.focus();
+    },
+    
+    color(el, { bind }) {
+      if (bind.args === 'text') {
+        el.style.color = bind.value;
+      }
+      
+      if (bind.modifiers.includes('bold')) {
+        el.style.fontWeight = 'bold';
+      }
+    }
+  }
+});
+```
+
+<ResponseField name="el" type="Element">
+  The element the directive is bound to
+</ResponseField>
+
+<ResponseField name="bind.value" type="any">
+  The evaluated value of the directive expression
+</ResponseField>
+
+<ResponseField name="bind.expression" type="string">
+  The raw expression string
+</ResponseField>
+
+<ResponseField name="bind.args" type="string">
+  Arguments passed to the directive (e.g., `dv-color:text` → `"text"`)
+</ResponseField>
+
+<ResponseField name="bind.modifiers" type="string[]">
+  Array of modifiers (e.g., `dv-color.bold.italic` → `["bold", "italic"]`)
+</ResponseField>
+
+<ResponseField name="bind.name" type="string">
+  The full directive name including prefix
+</ResponseField>
+
+## Debugging
+
+### @debug Directive
+
+```javascript index.js:270-272
+function debugparse(_, char) {
+  return `_c(console[console.debug ? 'debug' : 'log']({${char}}));\n debugger`;
+}
+```
+
+```html
+<template>
+  <div>
+    @debug count, message, user
+    <p>{{ message }}</p>
+  </div>
+</template>
+```
+
+This will log the variables and trigger a debugger breakpoint.
+
+### Variable Declaration ($:)
+
+```javascript index.js:278-280
+function variableparse(_, char) {
+  return `let ${char};`;
+}
+```
+
+```html
+<template>
+  <div>
+    $: doubled = count * 2
+    <p>Count: {{ count }}</p>
+    <p>Doubled: {{ doubled }}</p>
+  </div>
+</template>
+```
+
+### Comments
+
+```javascript index.js:274-276
+function commentparse(_, char, charr) {
+  return `/** ${charr} **/`;
+}
+```
+
+```html
+<template>
+  <div>
+    {{ !-- This is a comment -- }}
+    <p>Visible content</p>
+  </div>
+</template>
+```
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Keep templates simple">
+    Avoid complex logic in templates. Move complex expressions to computed properties or methods.
+    
+    ```javascript
+    // Bad
+    template: `<p>{{ users.filter(u => u.active).map(u => u.name).join(', ') }}</p>`
+    
+    // Good
+    computed: {
+      activeUserNames() {
+        return this.users
+          .filter(u => u.active)
+          .map(u => u.name)
+          .join(', ');
+      }
+    },
+    template: `<p>{{ activeUserNames }}</p>`
+    ```
+  </Accordion>
+  
+  <Accordion title="Use key with #each (when available)">
+    When iterating over dynamic lists, provide a unique identifier to help with efficient re-rendering.
+  </Accordion>
+  
+  <Accordion title="Avoid deeply nested conditionals">
+    Extract complex conditional logic into computed properties for better readability.
+  </Accordion>
+  
+  <Accordion title="Use descriptive directive names">
+    When creating custom directives, use clear, descriptive names that indicate their purpose.
+  </Accordion>
+</AccordionGroup>
+
+## Related
+
+<CardGroup cols={3}>
+  <Card title="Reactivity" icon="arrows-rotate" href="/core/reactivity">
+    Understand reactive data
+  </Card>
+  <Card title="Components" icon="cube" href="/core/components">
+    Build reusable components
+  </Card>
+  <Card title="Lifecycle" icon="clock" href="/core/lifecycle">
+    Component lifecycle hooks
+  </Card>
+</CardGroup>

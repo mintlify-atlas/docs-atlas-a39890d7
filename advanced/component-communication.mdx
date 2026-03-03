@@ -1,0 +1,586 @@
+---
+title: Component Communication
+description: Learn how to enable communication between DativeJS components using attach, detach, and props
+---
+
+## Overview
+
+DativeJS provides multiple ways for components to communicate with each other. This guide covers parent-child communication, component composition, and the attached component system.
+
+## Parent-Child Communication
+
+### Using Props
+
+Components can receive data from their parent through props. Props are defined in the component options and can include type validation.
+
+#### Defining Props
+
+```javascript
+const ChildComponent = Dative.extend({
+  props: {
+    message: { type: String, default: 'Default message' },
+    count: { type: Number, default: 0 },
+    items: { type: Array, default: [] },
+    config: { type: Object, default: {} },
+    handler: { type: Function, default: null },
+    isActive: { type: Boolean, default: false }
+  },
+  template: `
+    <div>
+      <h3>{{ message }}</h3>
+      <p>Count: {{ count }}</p>
+    </div>
+  `
+});
+```
+
+<Note>
+Props support type validation for `String`, `Number`, `Array`, `Object`, `Function`, and `Boolean`. If a prop value doesn't match its type, DativeJS will display a warning.
+</Note>
+
+#### Passing Props
+
+Pass data to child components when creating instances:
+
+```javascript
+const parent = new Dative({
+  el: '#app',
+  data: () => ({
+    parentMessage: 'Hello from parent',
+    counter: 5
+  }),
+  oncreated() {
+    const child = new ChildComponent({
+      el: '#child',
+      props: {
+        message: this.parentMessage,
+        count: this.counter
+      }
+    });
+  }
+});
+```
+
+### Prop Types and Validation
+
+<AccordionGroup>
+  <Accordion title="String Props">
+    ```javascript
+    props: {
+      name: { type: String, default: 'Anonymous' }
+    }
+    ```
+    
+    DativeJS validates that the value is a string and warns if it's not.
+  </Accordion>
+  
+  <Accordion title="Number Props">
+    ```javascript
+    props: {
+      age: { type: Number, default: 0 },
+      price: { type: Number, default: 9.99 }
+    }
+    ```
+    
+    Ensures numeric values are passed.
+  </Accordion>
+  
+  <Accordion title="Array Props">
+    ```javascript
+    props: {
+      items: { type: Array, default: [] },
+      tags: { type: Array, default: [] }
+    }
+    ```
+    
+    Validates array types using DativeJS's internal type checking.
+  </Accordion>
+  
+  <Accordion title="Object Props">
+    ```javascript
+    props: {
+      user: { type: Object, default: {} },
+      settings: { type: Object, default: {} }
+    }
+    ```
+    
+    Accepts object values with validation.
+  </Accordion>
+  
+  <Accordion title="Function Props">
+    ```javascript
+    props: {
+      onClick: { type: Function, default: null },
+      onSubmit: { type: Function, default: null }
+    }
+    ```
+    
+    Useful for callback functions from parent to child.
+  </Accordion>
+  
+  <Accordion title="Boolean Props">
+    ```javascript
+    props: {
+      isVisible: { type: Boolean, default: false },
+      disabled: { type: Boolean, default: false }
+    }
+    ```
+    
+    Boolean flags for component state.
+  </Accordion>
+</AccordionGroup>
+
+### Simple Prop Syntax
+
+For basic props without defaults, use the shorthand:
+
+```javascript
+props: {
+  message: String,
+  count: Number,
+  items: Array,
+  isActive: Boolean
+}
+```
+
+## Component Attachment System
+
+### The `attach()` Method
+
+The `attach()` method creates a parent-child relationship between components. When a component is attached:
+
+1. It's added to the parent's `attached` array
+2. It automatically re-renders when the parent re-renders
+3. It maintains its own state and lifecycle
+
+#### Basic Usage
+
+```javascript
+const parent = new Dative({
+  el: '#parent',
+  data: () => ({
+    parentData: 'Parent value'
+  }),
+  template: `
+    <div>
+      <h1>Parent Component</h1>
+      <div id="child-container"></div>
+    </div>
+  `
+});
+
+const child = new Dative({
+  el: '#child-container',
+  data: () => ({
+    childData: 'Child value'
+  }),
+  template: `
+    <div>
+      <h2>Child Component</h2>
+    </div>
+  `
+});
+
+// Attach child to parent
+parent.attach(child);
+```
+
+<Warning>
+Avoid creating circular dependencies where Component A is attached to Component B, and Component B is also attached to Component A. This creates an infinite loop and DativeJS will warn you.
+</Warning>
+
+#### Attaching Multiple Components
+
+You can attach multiple components at once:
+
+```javascript
+// Attach multiple components
+parent.attach([child1, child2, child3]);
+
+// Or attach them individually
+parent.attach(child1);
+parent.attach(child2);
+parent.attach(child3);
+```
+
+#### Attaching via Options
+
+Components can be attached during parent creation:
+
+```javascript
+const parent = new Dative({
+  el: '#parent',
+  attach: [child1, child2], // Single component or array
+  data: () => ({ value: 'test' })
+});
+```
+
+### The `detach()` Method
+
+Remove a component from the parent's attached array:
+
+```javascript
+// Detach a single component
+parent.detach(child);
+
+// Detach multiple components
+parent.detach([child1, child2, child3]);
+```
+
+After detaching:
+- The child component continues to exist and function
+- It no longer re-renders when the parent re-renders
+- It's removed from the parent's `attached` array
+
+### The `attached` Array
+
+Every Dative instance has an `attached` array that stores references to attached child components:
+
+```javascript
+const parent = new Dative({
+  el: '#parent',
+  data: () => ({ value: 'test' })
+});
+
+const child1 = new Dative({ el: '#child1' });
+const child2 = new Dative({ el: '#child2' });
+
+parent.attach([child1, child2]);
+
+console.log(parent.attached); // [child1, child2]
+console.log(parent.attached.length); // 2
+```
+
+## Component Composition Patterns
+
+### List with Item Components
+
+Create a list where each item is a separate component:
+
+```javascript
+// Item component
+const TodoItem = Dative.extend({
+  props: {
+    todo: { type: Object, default: {} },
+    onToggle: { type: Function, default: null },
+    onDelete: { type: Function, default: null }
+  },
+  methods: {
+    toggle() {
+      if (this.onToggle) {
+        this.onToggle(this.todo.id);
+      }
+    },
+    remove() {
+      if (this.onDelete) {
+        this.onDelete(this.todo.id);
+      }
+    }
+  },
+  template: `
+    <div class="todo-item">
+      <input 
+        type="checkbox" 
+        bind:checked="todo.completed"
+        on:change="toggle()"
+      />
+      <span>{{ todo.text }}</span>
+      <button on:click="remove()">Delete</button>
+    </div>
+  `
+});
+
+// List component
+const TodoList = new Dative({
+  el: '#app',
+  data: () => ({
+    todos: [
+      { id: 1, text: 'Learn DativeJS', completed: false },
+      { id: 2, text: 'Build an app', completed: false },
+      { id: 3, text: 'Deploy to production', completed: false }
+    ],
+    components: []
+  }),
+  methods: {
+    toggleTodo(id) {
+      const todo = this.todos.find(t => t.id === id);
+      if (todo) {
+        todo.completed = !todo.completed;
+        this.render();
+      }
+    },
+    deleteTodo(id) {
+      this.todos = this.todos.filter(t => t.id !== id);
+      this.renderItems();
+    },
+    renderItems() {
+      // Clean up old components
+      this.components.forEach(comp => this.detach(comp));
+      this.components = [];
+      
+      // Create new components
+      this.todos.forEach(todo => {
+        const item = new TodoItem({
+          el: `#todo-${todo.id}`,
+          props: {
+            todo: todo,
+            onToggle: this.toggleTodo.bind(this),
+            onDelete: this.deleteTodo.bind(this)
+          }
+        });
+        this.components.push(item);
+        this.attach(item);
+      });
+    }
+  },
+  oncreated() {
+    this.renderItems();
+  },
+  template: `
+    <div class="todo-list">
+      <h1>Todo List</h1>
+      #each todo as todos
+        <div id="todo-{{ todo.id }}"></div>
+      /each
+    </div>
+  `
+});
+```
+
+### Modal Component Pattern
+
+```javascript
+const Modal = Dative.extend({
+  props: {
+    title: { type: String, default: 'Modal' },
+    isOpen: { type: Boolean, default: false },
+    onClose: { type: Function, default: null }
+  },
+  methods: {
+    close() {
+      if (this.onClose) {
+        this.onClose();
+      }
+    }
+  },
+  template: `
+    <div class="modal" dv-cloak>
+      #if isOpen
+        <div class="modal-overlay" on:click="close()"></div>
+        <div class="modal-content">
+          <div class="modal-header">
+            <h2>{{ title }}</h2>
+            <button on:click="close()">×</button>
+          </div>
+          <div class="modal-body">
+            <slot></slot>
+          </div>
+        </div>
+      /if
+    </div>
+  `
+});
+
+// Using the modal
+const app = new Dative({
+  el: '#app',
+  data: () => ({
+    showModal: false
+  }),
+  methods: {
+    openModal() {
+      this.showModal = true;
+      modal.isOpen = true;
+      modal.render();
+    },
+    closeModal() {
+      this.showModal = false;
+      modal.isOpen = false;
+      modal.render();
+    }
+  },
+  template: `
+    <div>
+      <button on:click="openModal()">Open Modal</button>
+      <div id="modal-container"></div>
+    </div>
+  `
+});
+
+const modal = new Modal({
+  el: '#modal-container',
+  props: {
+    title: 'Confirm Action',
+    isOpen: false,
+    onClose: () => app.closeModal()
+  }
+});
+
+app.attach(modal);
+```
+
+### Tab Component System
+
+```javascript
+const TabPanel = Dative.extend({
+  props: {
+    activeTab: { type: String, default: 'tab1' },
+    tabId: { type: String, default: '' }
+  },
+  computed: {
+    isActive() {
+      return this.activeTab === this.tabId;
+    }
+  },
+  template: `
+    <div class="tab-panel">
+      #if isActive
+        <slot></slot>
+      /if
+    </div>
+  `
+});
+
+const Tabs = new Dative({
+  el: '#tabs',
+  data: () => ({
+    activeTab: 'home'
+  }),
+  methods: {
+    setActiveTab(tabId) {
+      this.activeTab = tabId;
+      // Update all tab panels
+      this.attached.forEach(panel => {
+        panel.activeTab = tabId;
+        panel.render();
+      });
+    }
+  },
+  template: `
+    <div class="tabs">
+      <div class="tab-headers">
+        <button on:click="setActiveTab('home')">Home</button>
+        <button on:click="setActiveTab('profile')">Profile</button>
+        <button on:click="setActiveTab('settings')">Settings</button>
+      </div>
+      <div id="tab-home"></div>
+      <div id="tab-profile"></div>
+      <div id="tab-settings"></div>
+    </div>
+  `
+});
+
+const homeTab = new TabPanel({
+  el: '#tab-home',
+  props: { activeTab: 'home', tabId: 'home' }
+});
+
+const profileTab = new TabPanel({
+  el: '#tab-profile',
+  props: { activeTab: 'home', tabId: 'profile' }
+});
+
+const settingsTab = new TabPanel({
+  el: '#tab-settings',
+  props: { activeTab: 'home', tabId: 'settings' }
+});
+
+Tabs.attach([homeTab, profileTab, settingsTab]);
+```
+
+## Communication Best Practices
+
+<Note>
+**Props down, events up**: Pass data to children via props, and let children communicate back to parents via callback functions passed as props.
+</Note>
+
+### Avoid Direct State Mutation
+
+```javascript
+// ❌ Bad: Child directly mutates parent state
+const child = new Dative({
+  methods: {
+    updateParent() {
+      this.$parent.data.value = 'new value'; // Don't do this!
+    }
+  }
+});
+
+// ✅ Good: Child calls parent method via prop
+const child = Dative.extend({
+  props: {
+    onUpdate: { type: Function, default: null }
+  },
+  methods: {
+    update() {
+      if (this.onUpdate) {
+        this.onUpdate('new value');
+      }
+    }
+  }
+});
+```
+
+### Managing Component Lifecycle
+
+```javascript
+const parent = new Dative({
+  el: '#app',
+  data: () => ({
+    childComponents: []
+  }),
+  methods: {
+    addChild() {
+      const child = new ChildComponent({
+        el: `#child-${Date.now()}`
+      });
+      this.childComponents.push(child);
+      this.attach(child);
+    },
+    removeChild(child) {
+      this.detach(child);
+      child.$destroy();
+      this.childComponents = this.childComponents.filter(c => c !== child);
+    },
+    cleanup() {
+      // Clean up all children
+      this.childComponents.forEach(child => {
+        this.detach(child);
+        child.$destroy();
+      });
+      this.childComponents = [];
+    }
+  },
+  ondestroy() {
+    this.cleanup();
+  }
+});
+```
+
+## Accessing the Attached Array
+
+You can iterate over attached components:
+
+```javascript
+const parent = new Dative({
+  methods: {
+    refreshAllChildren() {
+      this.attached.forEach(child => {
+        if (child.render) {
+          child.render();
+        }
+      });
+    },
+    getChildCount() {
+      return this.attached.length;
+    },
+    findChildById(id) {
+      return this.attached.find(child => child._uid === id);
+    }
+  }
+});
+```
+
+<Warning>
+Do not modify the `attached` array directly. Always use `attach()` and `detach()` methods to ensure proper component relationships.
+</Warning>

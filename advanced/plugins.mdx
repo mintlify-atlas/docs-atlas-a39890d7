@@ -1,0 +1,410 @@
+---
+title: Plugin System
+description: Extend DativeJS with custom plugins using the plugin API
+---
+
+## Overview
+
+DativeJS provides a powerful plugin system that allows you to extend the framework's functionality. Plugins can add new methods to instances, modify prototypes, or integrate third-party libraries.
+
+## Installing Plugins
+
+### Using the `use()` Method
+
+Plugins are installed using the `use()` method, which can be called on a Dative instance:
+
+```javascript
+const app = new Dative({
+  el: '#app',
+  data: () => ({ message: 'Hello' })
+});
+
+// Install a single plugin
+app.use(myPlugin);
+
+// Install multiple plugins
+app.use(plugin1, plugin2, plugin3);
+```
+
+### Installing Plugins via Options
+
+You can also specify plugins during instance creation using the `use` option:
+
+```javascript
+const app = new Dative({
+  el: '#app',
+  use: [plugin1, plugin2],
+  data: () => ({ message: 'Hello' })
+});
+```
+
+<Note>
+Plugins specified in the `use` option are automatically installed before the instance is initialized.
+</Note>
+
+## Plugin API
+
+### Plugin Structure
+
+A plugin can be either a function or an object with an `install` method. Both receive the same arguments:
+
+```javascript
+// Function-based plugin
+function myPlugin({ instance, proto, Dative }) {
+  // Plugin logic here
+}
+
+// Object-based plugin
+const myPlugin = {
+  install({ instance, proto, Dative }) {
+    // Plugin logic here
+  }
+};
+```
+
+### Plugin Arguments
+
+The plugin receives an object with three properties:
+
+<AccordionGroup>
+  <Accordion title="instance">
+    The current Dative instance that is installing the plugin. You can add instance-specific properties or methods here.
+    
+    ```javascript
+    function myPlugin({ instance }) {
+      instance.customProperty = 'value';
+    }
+    ```
+  </Accordion>
+  
+  <Accordion title="proto">
+    The Dative prototype (`Dative.prototype`). Use this to add methods that will be available on all Dative instances.
+    
+    ```javascript
+    function myPlugin({ proto }) {
+      proto.$toast = function(message) {
+        console.log('Toast:', message);
+      };
+    }
+    ```
+  </Accordion>
+  
+  <Accordion title="Dative">
+    The Dative constructor itself. Use this to add static methods or properties to the Dative class.
+    
+    ```javascript
+    function myPlugin({ Dative }) {
+      Dative.myStaticMethod = function() {
+        console.log('Static method called');
+      };
+    }
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Creating a Plugin
+
+### Example: Toast Notification Plugin
+
+Let's create a complete toast notification plugin:
+
+```javascript toast-plugin.js
+const ToastPlugin = {
+  install({ proto }) {
+    // Add $toast method to all instances
+    proto.$toast = function(message, options = {}) {
+      const { duration = 3000, type = 'info' } = options;
+      
+      // Create toast element
+      const toast = document.createElement('div');
+      toast.className = `toast toast-${type}`;
+      toast.textContent = message;
+      toast.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        padding: 12px 20px;
+        background: ${type === 'error' ? '#f44336' : '#4caf50'};
+        color: white;
+        border-radius: 4px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+        z-index: 9999;
+        transition: opacity 0.3s;
+      `;
+      
+      document.body.appendChild(toast);
+      
+      // Auto-remove after duration
+      setTimeout(() => {
+        toast.style.opacity = '0';
+        setTimeout(() => toast.remove(), 300);
+      }, duration);
+    };
+  }
+};
+
+export default ToastPlugin;
+```
+
+### Using the Toast Plugin
+
+```javascript
+import Dative from 'dativejs';
+import ToastPlugin from './toast-plugin';
+
+const app = new Dative({
+  el: '#app',
+  data: () => ({
+    message: 'Hello World'
+  }),
+  methods: {
+    showSuccess() {
+      this.$toast('Operation successful!', { type: 'info' });
+    },
+    showError() {
+      this.$toast('Something went wrong!', { type: 'error' });
+    }
+  },
+  template: `
+    <div>
+      <button on:click="showSuccess()">Show Success</button>
+      <button on:click="showError()">Show Error</button>
+    </div>
+  `
+});
+
+app.use(ToastPlugin);
+app.render();
+```
+
+## Advanced Plugin Examples
+
+### HTTP Client Plugin
+
+Add HTTP request capabilities to all instances:
+
+```javascript http-plugin.js
+const HttpPlugin = {
+  install({ proto }) {
+    proto.$http = {
+      async get(url, options = {}) {
+        const response = await fetch(url, { ...options, method: 'GET' });
+        return response.json();
+      },
+      
+      async post(url, data, options = {}) {
+        const response = await fetch(url, {
+          ...options,
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...options.headers
+          },
+          body: JSON.stringify(data)
+        });
+        return response.json();
+      },
+      
+      async put(url, data, options = {}) {
+        const response = await fetch(url, {
+          ...options,
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            ...options.headers
+          },
+          body: JSON.stringify(data)
+        });
+        return response.json();
+      },
+      
+      async delete(url, options = {}) {
+        const response = await fetch(url, { ...options, method: 'DELETE' });
+        return response.json();
+      }
+    };
+  }
+};
+
+export default HttpPlugin;
+```
+
+### Usage:
+
+```javascript
+const app = new Dative({
+  el: '#app',
+  data: () => ({
+    users: [],
+    loading: false
+  }),
+  methods: {
+    async fetchUsers() {
+      this.loading = true;
+      try {
+        const data = await this.$http.get('https://api.example.com/users');
+        this.users = data;
+      } catch (error) {
+        console.error('Failed to fetch users:', error);
+      } finally {
+        this.loading = false;
+      }
+    }
+  },
+  oncreated() {
+    this.fetchUsers();
+  }
+});
+
+app.use(HttpPlugin);
+```
+
+### Router Plugin
+
+Create a simple routing system:
+
+```javascript router-plugin.js
+const RouterPlugin = {
+  install({ proto, Dative }) {
+    // Add router to prototype
+    proto.$router = {
+      currentRoute: window.location.pathname,
+      
+      push(path) {
+        window.history.pushState({}, '', path);
+        this.currentRoute = path;
+        // Trigger re-render on instances using router
+        if (Dative.config.CurrentInstance) {
+          Dative.config.CurrentInstance.render();
+        }
+      },
+      
+      back() {
+        window.history.back();
+      },
+      
+      forward() {
+        window.history.forward();
+      }
+    };
+    
+    // Listen for popstate events
+    window.addEventListener('popstate', () => {
+      proto.$router.currentRoute = window.location.pathname;
+      if (Dative.config.CurrentInstance) {
+        Dative.config.CurrentInstance.render();
+      }
+    });
+  }
+};
+
+export default RouterPlugin;
+```
+
+## Plugin Best Practices
+
+<Warning>
+Always prefix custom methods with `$` to avoid conflicts with user-defined properties and methods.
+</Warning>
+
+### Naming Conventions
+
+- **Instance methods**: Use `$` prefix (e.g., `$http`, `$toast`, `$router`)
+- **Static methods**: Use descriptive names without special prefixes
+- **Internal properties**: Use `_` prefix to indicate private properties
+
+### Error Handling
+
+```javascript
+const SafePlugin = {
+  install({ proto }) {
+    proto.$safeMethod = function() {
+      try {
+        // Plugin logic
+      } catch (error) {
+        console.error('[Plugin Error]:', error);
+        // Optionally use Dative's warn utility
+        if (this.constructor.utlis) {
+          this.constructor.utlis.warn('Plugin error:', error);
+        }
+      }
+    };
+  }
+};
+```
+
+### Cleanup
+
+If your plugin adds event listeners or creates resources, consider cleanup:
+
+```javascript
+const CleanupPlugin = {
+  install({ proto }) {
+    const listeners = new WeakMap();
+    
+    proto.$on = function(event, handler) {
+      window.addEventListener(event, handler);
+      
+      if (!listeners.has(this)) {
+        listeners.set(this, []);
+      }
+      listeners.get(this).push({ event, handler });
+    };
+    
+    // Hook into destroy lifecycle
+    const originalDestroy = proto.$destroy;
+    proto.$destroy = function() {
+      // Clean up event listeners
+      if (listeners.has(this)) {
+        listeners.get(this).forEach(({ event, handler }) => {
+          window.removeEventListener(event, handler);
+        });
+        listeners.delete(this);
+      }
+      
+      // Call original destroy
+      originalDestroy.call(this);
+    };
+  }
+};
+```
+
+## Testing Plugins
+
+```javascript
+import Dative from 'dativejs';
+import MyPlugin from './my-plugin';
+
+// Test plugin installation
+const app = new Dative({
+  el: '#test',
+  data: () => ({ test: true })
+});
+
+app.use(MyPlugin);
+
+// Verify plugin methods are available
+console.assert(
+  typeof app.$myPluginMethod === 'function',
+  'Plugin method should be available'
+);
+```
+
+## Multiple Plugin Installation
+
+Install multiple plugins in a single call:
+
+```javascript
+app.use(HttpPlugin, ToastPlugin, RouterPlugin);
+
+// Or via options
+const app = new Dative({
+  el: '#app',
+  use: [HttpPlugin, ToastPlugin, RouterPlugin],
+  data: () => ({ message: 'Hello' })
+});
+```
+
+<Note>
+Plugins are executed in the order they are provided, so if plugins depend on each other, ensure they are installed in the correct sequence.
+</Note>
