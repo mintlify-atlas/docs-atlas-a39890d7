@@ -1,0 +1,110 @@
+{
+  "projectType": "framework",
+  "projectName": "DativeJS",
+  "projectDescription": "A modern reactive UI JavaScript framework with components, directives, and templating",
+  "theme": "palm",
+  "primaryColor": "#6366f1",
+  "lightColor": "#818cf8",
+  "darkColor": "#4f46e5",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Getting Started",
+            "pages": [
+              "introduction",
+              "installation",
+              "quickstart"
+            ]
+          },
+          {
+            "group": "Core Concepts",
+            "pages": [
+              "core/reactivity",
+              "core/components",
+              "core/templating",
+              "core/lifecycle"
+            ]
+          },
+          {
+            "group": "Guides",
+            "pages": [
+              "guides/data-binding",
+              "guides/event-handling",
+              "guides/directives",
+              "guides/animations",
+              "guides/styling"
+            ]
+          },
+          {
+            "group": "Advanced",
+            "pages": [
+              "advanced/plugins",
+              "advanced/component-communication",
+              "advanced/custom-directives"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "API Reference",
+        "groups": [
+          {
+            "group": "Core API",
+            "pages": [
+              "api/dative-class",
+              "api/dative-component",
+              "api/instance-methods",
+              "api/lifecycle-hooks"
+            ]
+          },
+          {
+            "group": "Built-in Directives",
+            "pages": [
+              "api/directives/bind",
+              "api/directives/ref",
+              "api/directives/on",
+              "api/directives/cloak"
+            ]
+          },
+          {
+            "group": "Configuration",
+            "pages": [
+              "api/config",
+              "api/utilities"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "Reactive data binding system",
+    "Component-based architecture",
+    "Custom directive support",
+    "Template syntax with control flow",
+    "Lifecycle hooks",
+    "Scoped CSS styling",
+    "Animation system",
+    "Plugin architecture"
+  ],
+  "publicApiSurface": [
+    "Dative - Main framework class",
+    "DativeComponent - Component class",
+    "defineApp() - Create application instance",
+    "defineProperty() - Define custom properties",
+    "dv-bind: - Data binding directive",
+    "dv-ref - Element reference directive",
+    "dv-on: - Event handling directive",
+    "dv-cloak - Render hiding directive",
+    "oncreated() - Creation lifecycle hook",
+    "onmounted() - Mount lifecycle hook",
+    "ondestroy() - Destroy lifecycle hook",
+    "render() - Manual render method",
+    "attach() - Attach child components",
+    "detach() - Detach child components",
+    "use() - Install plugins"
+  ]
+}
